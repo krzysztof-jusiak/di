@@ -139,8 +139,8 @@ class instance {
     static T try_create(const TProvider&) noexcept;
 #else   // __pph__
 
-    template <class, class, class TProvider,
-              __BOOST_DI_REQUIRES(!detail::is_expr<TGiven, TProvider>::value && aux::is_callable<TGiven>::value &&
+    template <class T, class, class TProvider,
+              __BOOST_DI_REQUIRES(!detail::is_expr<TGiven, TProvider, const detail::arg<T, TExpected, TGiven>&>::value && !detail::is_expr<TGiven, TProvider>::value && aux::is_callable<TGiven>::value &&
                                   aux::is_callable<TExpected>::value) = 0>
     static wrappers::unique<instance, TExpected> try_create(const TProvider&) noexcept;
 
