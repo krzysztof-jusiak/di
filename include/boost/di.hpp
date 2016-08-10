@@ -1056,13 +1056,15 @@ class singleton {
     auto create(const TProvider& provider) {
       return create_impl(provider);
     }
+    explicit scope(const T& object) : object_(object) { std::cout << "too: " << object << std::endl; }
 
    private:
     template <class TProvider>
     wrappers::shared<singleton, T&> create_impl(const TProvider& provider) {
-      static auto object(provider.get(type_traits::stack{}));
+      static auto object(object_);
       return wrappers::shared<singleton, T&>(object);
     }
+    T object_;
   };
   template <class _, class T>
   class scope<_, T, aux::true_type> {
@@ -1593,8 +1595,7 @@ class dependency
   friend class dependency;
   using scope_t = typename TScope::template scope<TExpected, TGiven>;
   template <class T>
-  using externable = aux::integral_constant<bool, aux::always<T>::value && aux::is_same<TScope, scopes::deduce>::value &&
-                                                      aux::is_same<TExpected, TGiven>::value>;
+  using externable = aux::integral_constant<bool, aux::always<T>::value && aux::is_same<TExpected, TGiven>::value>;
   template <class T>
   struct ref_traits {
     using type = T;
@@ -1641,6 +1642,7 @@ class dependency
   }
   template <class T, __BOOST_DI_REQUIRES_MSG(concepts::scopable<T>) = 0>
   auto in(const T&)noexcept {
+    std::cout << "in" << std::endl;
     return dependency<T, TExpected, TGiven, TName, TPriority>{};
   }
   template <class T, __BOOST_DI_REQUIRES(!aux::is_array<TExpected, T>::value) = 0,
@@ -1659,11 +1661,18 @@ class dependency
     using dependency = dependency<scopes::instance, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
     using dependency =
         dependency<scopes::instance, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+    return dependency{static_cast<T&&>(object)};
+  }
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0,
+            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
+  auto to(T&& object) noexcept {
+    std::cout << "to" << std::endl;
+    using dependency = dependency<TScope, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{static_cast<T&&>(object)};
   }
   template <class...>

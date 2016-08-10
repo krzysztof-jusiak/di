@@ -35,12 +35,22 @@ class singleton {
       return create_impl(provider);
     }
 
+    //scope() {
+      //std::cout << "def " << std::endl;
+    //}
+    explicit scope(const T& object) : object_(object) {
+      std::cout << "too: " << object << std::endl;
+    }
+
    private:
     template <class TProvider>
     wrappers::shared<singleton, T&> create_impl(const TProvider& provider) {
-      static auto object(provider.get(type_traits::stack{}));
+      //static auto object(provider.get(type_traits::stack{}));
+      static auto object(object_);
       return wrappers::shared<singleton, T&>(object);
     }
+
+    T object_;
   };
 
   template <class _, class T>

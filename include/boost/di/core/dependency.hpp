@@ -54,7 +54,7 @@ class dependency
   using scope_t = typename TScope::template scope<TExpected, TGiven>;
 
   template <class T>
-  using externable = aux::integral_constant<bool, aux::always<T>::value && aux::is_same<TScope, scopes::deduce>::value &&
+  using externable = aux::integral_constant<bool, aux::always<T>::value &&
                                                       aux::is_same<TExpected, TGiven>::value>;
 
   template <class T>
@@ -97,7 +97,7 @@ class dependency
   using name = TName;
   using priority = TPriority;
 
-  dependency() noexcept {}
+  dependency() noexcept { }
 
   template <class T>
   explicit dependency(T&& object) noexcept : scope_t(static_cast<T&&>(object)) {}
@@ -113,7 +113,8 @@ class dependency
   }
 
   template <class T, __BOOST_DI_REQUIRES_MSG(concepts::scopable<T>) = 0>
-  auto in(const T&)noexcept {
+  auto in(const T&) noexcept {
+    std::cout << "in" << std::endl;
     return dependency<T, TExpected, TGiven, TName, TPriority>{};
   }
 
@@ -136,11 +137,20 @@ class dependency
     return dependency{object};
   }
 
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
     using dependency =
         dependency<scopes::instance, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+    return dependency{static_cast<T&&>(object)};
+  }
+
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0,
+            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
+  auto to(T&& object) noexcept {
+    std::cout << "to" << std::endl;
+    using dependency =
+        dependency<TScope, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{static_cast<T&&>(object)};
   }
 
