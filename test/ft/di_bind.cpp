@@ -1072,15 +1072,15 @@ test bind_value_in_singleton_scope_shared = [] {
   expect(i == *injector.create<std::shared_ptr<int>>());
 };
 
-test bind_intilizer_list_in_singleton_scope = [] {
-  const auto injector = di::make_injector(di::bind<int[]>().in(di::singleton).to({1, 2, 3}));
-  const auto object = injector.create<std::vector<int>>();
-  expect(3 == object.size());
-  auto it = object.begin();
-  expect(*(std::next(it, 0)) == 1);
-  expect(*(std::next(it, 1)) == 2);
-  expect(*(std::next(it, 2)) == 3);
-};
+//test bind_intilizer_list_in_singleton_scope = [] {
+  //const auto injector = di::make_injector(di::bind<int[]>().in(di::singleton).to({1, 2, 3}));
+  //const auto object = injector.create<std::vector<int>>();
+  //expect(3 == object.size());
+  //auto it = object.begin();
+  //expect(*(std::next(it, 0)) == 1);
+  //expect(*(std::next(it, 1)) == 2);
+  //expect(*(std::next(it, 2)) == 3);
+//};
 
 test bind_lambda_expr_in_singleton_scope_shared = [] {
   const auto injector =
