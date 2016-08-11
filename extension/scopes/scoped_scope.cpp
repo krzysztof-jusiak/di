@@ -17,7 +17,7 @@ class scoped_scope {
   template <class, class T>
   class scope {
    public:
-    template <class T_>
+    template <class T_, class>
     using is_referable = typename di::wrappers::shared<scoped_scope, T>::template is_referable<T_>;
 
     template <class, class, class TProvider, class T_ = di::aux::decay_t<decltype(di::aux::declval<TProvider>().get())>>

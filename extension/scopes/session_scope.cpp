@@ -29,8 +29,8 @@ class session_scope {
     using scope_type = typename TScope::template scope<TExpected, TGiven>;
 
    public:
-    template <class T>
-    using is_referable = typename scope_type::template is_referable<T>;
+    template <class T, class TInjector>
+    using is_referable = typename scope_type::template is_referable<T, TInjector>;
 
     template <class T, class TName, class TProvider>
     static auto try_create(const TProvider& provider) -> decltype(scope_type{}.template try_create<T, TName>(provider));
