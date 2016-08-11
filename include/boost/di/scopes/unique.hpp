@@ -14,10 +14,10 @@ namespace scopes {
 
 class unique {
  public:
-  template <class, class>
+  template <class, class, class = void>
   class scope {
    public:
-    template <class>
+    template <class, class>
     using is_referable = aux::false_type;
 
     template <class T, class, class TProvider>

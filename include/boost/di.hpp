@@ -799,7 +799,7 @@ typename scope<T>::template requires_<typename scope<_, _>::is_referable, typena
     scopable_impl(...);
 template <class T>
 auto scopable_impl(T &&)
-    -> aux::is_valid_expr<typename T::template scope<_, _>::template is_referable<_>,
+    -> aux::is_valid_expr<typename T::template scope<_, _>::template is_referable<_, _>,
                           decltype(T::template scope<_, _>::template try_create<_, _>(provider__<_>{})),
                           decltype(aux::declval<typename T::template scope<_, _>>().template create<_, _>(provider__<_>{}))>;
 template <class T>
@@ -1047,7 +1047,7 @@ class singleton {
   template <class, class T, class = decltype(has_shared_ptr__(aux::declval<T>()))>
   class scope {
    public:
-    template <class T_>
+    template <class T_, class>
     using is_referable = typename wrappers::shared<singleton, T&>::template is_referable<T_>;
     template <class, class, class TProvider>
     static decltype(wrappers::shared<singleton, T&>{aux::declval<TProvider>().get(type_traits::stack{})}) try_create(
@@ -1056,20 +1056,18 @@ class singleton {
     auto create(const TProvider& provider) {
       return create_impl(provider);
     }
-    explicit scope(const T& object) : object_(object) { std::cout << "too: " << object << std::endl; }
 
    private:
     template <class TProvider>
     wrappers::shared<singleton, T&> create_impl(const TProvider& provider) {
-      static auto object(object_);
+      static auto object(provider.get(type_traits::stack{}));
       return wrappers::shared<singleton, T&>(object);
     }
-    T object_;
   };
   template <class _, class T>
   class scope<_, T, aux::true_type> {
    public:
-    template <class T_>
+    template <class T_, class>
     using is_referable = typename wrappers::shared<singleton, T>::template is_referable<T_>;
     template <class, class, class TProvider, class T_ = aux::decay_t<decltype(aux::declval<TProvider>().get())>>
     static decltype(wrappers::shared<singleton, T_>{std::shared_ptr<T_>{std::shared_ptr<T_>{aux::declval<TProvider>().get()}}})
@@ -1139,10 +1137,10 @@ struct unique<TScope, T*> {
 namespace scopes {
 class unique {
  public:
-  template <class, class>
+  template <class, class, class = void>
   class scope {
    public:
-    template <class>
+    template <class, class>
     using is_referable = aux::false_type;
     template <class T, class, class TProvider>
     static decltype(wrappers::unique<unique, decltype(aux::declval<TProvider>().get(type_traits::memory_traits_t<T>{}))>{
@@ -1184,11 +1182,12 @@ using scope_traits_t = typename scope_traits<T>::type;
 namespace scopes {
 class deduce {
  public:
-  template <class TExpected, class TGiven>
+  template <class TExpected, class TGiven, class = void>
   class scope {
    public:
-    template <class T>
-    using is_referable = typename type_traits::scope_traits_t<T>::template scope<TExpected, TGiven>::template is_referable<T>;
+    template <class T, class TProvider>
+    using is_referable =
+        typename type_traits::scope_traits_t<T>::template scope<TExpected, TGiven>::template is_referable<T, TProvider>;
     template <class T, class TName, class TProvider>
     static decltype(typename type_traits::scope_traits_t<T>::template scope<TExpected, TGiven>{}.template try_create<T, TName>(
         aux::declval<TProvider>()))
@@ -1377,9 +1376,9 @@ struct wrapper {
 };
 class instance {
  public:
-  template <class, class TGiven, class = int>
+  template <class, class TGiven, class = void, class = int>
   struct scope {
-    template <class>
+    template <class, class>
     using is_referable = aux::false_type;
     explicit scope(const TGiven& object) : object_{object} {}
     template <class, class, class TProvider>
@@ -1391,8 +1390,8 @@ class instance {
     TGiven object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, std::shared_ptr<TGiven>> {
-    template <class T>
+  struct scope<TExpected, std::shared_ptr<TGiven>, void> {
+    template <class T, class>
     using is_referable = typename wrappers::shared<instance, TGiven>::template is_referable<aux::remove_qualifiers_t<T>>;
     explicit scope(const std::shared_ptr<TGiven>& object) : object_{object} {}
     template <class, class, class TProvider>
@@ -1404,8 +1403,8 @@ class instance {
     std::shared_ptr<TGiven> object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, std::initializer_list<TGiven>> {
-    template <class>
+  struct scope<TExpected, std::initializer_list<TGiven>, void> {
+    template <class, class>
     using is_referable = aux::false_type;
     scope(const std::initializer_list<TGiven>& object) : object_(object) {}
     template <class, class, class TProvider>
@@ -1417,8 +1416,8 @@ class instance {
     std::initializer_list<TGiven> object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven&, __BOOST_DI_REQUIRES(!aux::is_callable<TGiven>::value)> {
-    template <class>
+  struct scope<TExpected, TGiven&, void, __BOOST_DI_REQUIRES(!aux::is_callable<TGiven>::value)> {
+    template <class, class>
     using is_referable = aux::true_type;
     explicit scope(TGiven& object) : object_{object} {}
     template <class, class, class TProvider>
@@ -1430,8 +1429,8 @@ class instance {
     wrappers::shared<instance, TGiven&> object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
-    template <class>
+  struct scope<TExpected, TGiven, void, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
+    template <class, class>
     using is_referable =
         aux::integral_constant<bool, !aux::is_callable<TExpected>::value || !detail::has_result_type<TExpected>::value>;
     explicit scope(const TGiven& object) : object_(object) {}
@@ -1484,7 +1483,7 @@ class instance {
     TGiven object_;
   };
   template <class _, class... Ts>
-  class scope<_, aux::type_list<Ts...>> {
+  class scope<_, aux::type_list<Ts...>, void> {
     template <class>
     struct injector__;
     template <class TName, class T>
@@ -1547,7 +1546,7 @@ class instance {
     };
 
    public:
-    template <class>
+    template <class, class>
     using is_referable = aux::true_type;
     template <class TInjector, __BOOST_DI_REQUIRES(aux::is_a<core::injector_base, TInjector>::value) = 0>
     explicit scope(TInjector&& i) noexcept : injector_((injector*)new injector_impl<TInjector>{static_cast<TInjector&&>(i)}) {}
@@ -1567,6 +1566,55 @@ class instance {
 };
 }
 namespace core {
+template <class U, class TScope>
+struct scope_adapter {
+  template <class TExpected, class TGiven>
+  class scope {
+    template <class T>
+    using is_smart = aux::integral_constant<bool, !aux::is_same<aux::remove_smart_ptr_t<T>, T>::value>;
+    template <class T, class, class = int>
+    struct underlying_type : aux::true_type {
+      using type = T;
+    };
+    template <class T, class TProvider>
+    struct underlying_type<T, TProvider, __BOOST_DI_REQUIRES(aux::is_callable<T>::value)> {
+      using type = decltype(aux::declval<T>()(aux::declval<typename TProvider::injector_t>()));
+    };
+    template <class TProvider, class T = typename underlying_type<U, TProvider>::type>
+    using is_shared = aux::integral_constant<bool, is_smart<T>::value || is_smart<U>::value>;
+
+   public:
+    template <class T, class TProvider>
+    using is_referable =
+        typename TScope::template scope<TExpected, TGiven, is_shared<TProvider>>::template is_referable<T, TProvider>;
+    explicit scope(const U& object) : object_(object) {}
+    template <class TInjector>
+    struct provider {
+      template <class TMemory = type_traits::heap,
+                __BOOST_DI_REQUIRES(aux::always<TMemory>::value&& aux::is_callable<U>::value) = 0>
+      auto get(const TMemory& = {}) const {
+        return object_(injector_);
+      }
+      template <class TMemory = type_traits::heap,
+                __BOOST_DI_REQUIRES(aux::always<TMemory>::value && !aux::is_callable<U>::value) = 0>
+      auto get(const TMemory& = {}) const {
+        return object_;
+      }
+      const TInjector& injector_;
+      const U& object_;
+    };
+    template <class T, class TName, class TProvider>
+    static decltype(typename TScope::template scope<TExpected, TGiven, is_shared<TProvider>>{}.template try_create<T, TName>(
+        aux::declval<provider<typename TProvider::injector_t>>()))
+    try_create(const TProvider&);
+    template <class T, class TName, class TProvider>
+    auto create(const TProvider& pr) {
+      using scope = typename TScope::template scope<TExpected, TGiven, is_shared<TProvider>>;
+      return scope{}.template create<T, TName>(provider<typename TProvider::injector_t>{*pr.injector_, object_});
+    }
+    U object_;
+  };
+};
 template <class, class>
 struct dependency_concept {};
 template <class T, class TDependency>
@@ -1640,9 +1688,9 @@ class dependency
   auto named(const T&) noexcept {
     return dependency<TScope, TExpected, TGiven, T, TPriority>{static_cast<dependency&&>(*this)};
   }
-  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::scopable<T>) = 0>
+  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::scopable<T>) = 0,
+            __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto in(const T&)noexcept {
-    std::cout << "in" << std::endl;
     return dependency<T, TExpected, TGiven, TName, TPriority>{};
   }
   template <class T, __BOOST_DI_REQUIRES(!aux::is_array<TExpected, T>::value) = 0,
@@ -1655,10 +1703,19 @@ class dependency
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
     return dependency<TScope, array<type>, array<type, Ts...>, TName, TPriority>{};
   }
-  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0>
+  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,
+            __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
     using dependency = dependency<scopes::instance, array<type>, std::initializer_list<T>, TName, TPriority>;
+    return dependency{object};
+  }
+  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,
+            __BOOST_DI_REQUIRES(aux::always<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0>
+  auto to(std::initializer_list<T>&& object) noexcept {
+    using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
+    using dependency =
+        dependency<scope_adapter<std::initializer_list<T>, TScope>, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0,
@@ -1671,8 +1728,8 @@ class dependency
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
-    std::cout << "to" << std::endl;
-    using dependency = dependency<TScope, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+    using dependency =
+        dependency<scope_adapter<T, TScope>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{static_cast<T&&>(object)};
   }
   template <class...>
@@ -2302,26 +2359,26 @@ template <class... TDeps>
 struct copyable<aux::type_list<TDeps...>> : aux::join<typename copyable_impl<TDeps>::type...> {};
 template <class TDeps>
 using copyable_t = typename copyable<TDeps>::type;
-template <class T, class>
+template <class T, class, class>
 struct referable {
   using type = T;
 };
-template <class T, class TDependency>
-struct referable<T&, TDependency> {
-  using type = aux::conditional_t<TDependency::template is_referable<T&>::value, T&, T>;
+template <class T, class TProvider, class TDependency>
+struct referable<T&, TProvider, TDependency> {
+  using type = aux::conditional_t<TDependency::template is_referable<T&, TProvider>::value, T&, T>;
 };
-template <class T, class TDependency>
-struct referable<const T&, TDependency> {
-  using type = aux::conditional_t<TDependency::template is_referable<const T&>::value, const T&, T>;
+template <class T, class TProvider, class TDependency>
+struct referable<const T&, TProvider, TDependency> {
+  using type = aux::conditional_t<TDependency::template is_referable<const T&, TProvider>::value, const T&, T>;
 };
 #if defined(__MSVC__)
-template <class T, class TDependency>
-struct referable<T&&, TDependency> {
-  using type = aux::conditional_t<TDependency::template is_referable<T&&>::value, T&&, T>;
+template <class T, class TProvider, class TDependency>
+struct referable<T&&, TProvider, TDependency> {
+  using type = aux::conditional_t<TDependency::template is_referable<T&&, TProvider>::value, T&&, T>;
 };
 #endif
-template <class T, class TDependency>
-using referable_t = typename referable<T, TDependency>::type;
+template <class T, class TProvider, class TDependency>
+using referable_t = typename referable<T, TProvider, TDependency>::type;
 #if defined(__MSVC__)
 template <class T, class TInjector>
 inline auto build(TInjector&& injector) noexcept {
@@ -2490,7 +2547,7 @@ class injector : injector_base, pool<bindings_t<TDeps...>> {
     using provider_t = successful::provider<ctor_t, injector>;
     using wrapper_t =
         decltype(static_cast<dependency__<dependency_t>&>(dependency).template create<T, TName>(provider_t{this}));
-    using create_t = referable_t<T, dependency__<dependency_t>>;
+    using create_t = referable_t<T, provider_t, dependency__<dependency_t>>;
     using ctor_args_t = typename ctor_t::second::second;
     policy::template call<arg_wrapper<T, TName, TIsRoot, ctor_args_t, dependency_t, pool_t>>(TConfig::policies(this));
     return successful::wrapper<create_t, wrapper_t>{
@@ -2656,7 +2713,7 @@ class injector<TConfig, pool<>, TDeps...> : injector_base, pool<bindings_t<TDeps
     using provider_t = successful::provider<ctor_t, injector>;
     using wrapper_t =
         decltype(static_cast<dependency__<dependency_t>&>(dependency).template create<T, TName>(provider_t{this}));
-    using create_t = referable_t<T, dependency__<dependency_t>>;
+    using create_t = referable_t<T, provider_t, dependency__<dependency_t>>;
     return successful::wrapper<create_t, wrapper_t>{
         static_cast<dependency__<dependency_t>&>(dependency).template create<T, TName>(provider_t{this})};
   }

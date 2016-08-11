@@ -40,7 +40,7 @@ typename scope<T>::template requires_<typename scope<_, _>::is_referable, typena
 
 template <class T>
 auto scopable_impl(T &&)
-    -> aux::is_valid_expr<typename T::template scope<_, _>::template is_referable<_>,
+    -> aux::is_valid_expr<typename T::template scope<_, _>::template is_referable<_, _>,
                           decltype(T::template scope<_, _>::template try_create<_, _>(provider__<_>{})),
                           decltype(aux::declval<typename T::template scope<_, _>>().template create<_, _>(provider__<_>{}))>;
 

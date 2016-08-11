@@ -46,30 +46,30 @@ struct copyable<aux::type_list<TDeps...>> : aux::join<typename copyable_impl<TDe
 template <class TDeps>
 using copyable_t = typename copyable<TDeps>::type;
 
-template <class T, class>
+template <class T, class, class>
 struct referable {
   using type = T;
 };
 
-template <class T, class TDependency>
-struct referable<T&, TDependency> {
-  using type = aux::conditional_t<TDependency::template is_referable<T&>::value, T&, T>;
+template <class T, class TProvider, class TDependency>
+struct referable<T&, TProvider, TDependency> {
+  using type = aux::conditional_t<TDependency::template is_referable<T&, TProvider>::value, T&, T>;
 };
 
-template <class T, class TDependency>
-struct referable<const T&, TDependency> {
-  using type = aux::conditional_t<TDependency::template is_referable<const T&>::value, const T&, T>;
+template <class T, class TProvider, class TDependency>
+struct referable<const T&, TProvider,  TDependency> {
+  using type = aux::conditional_t<TDependency::template is_referable<const T&, TProvider>::value, const T&, T>;
 };
 
 #if defined(__MSVC__)  // __pph__
-template <class T, class TDependency>
-struct referable<T&&, TDependency> {
-  using type = aux::conditional_t<TDependency::template is_referable<T&&>::value, T&&, T>;
+template <class T, class TProvider, class TDependency>
+struct referable<T&&, TProvider, TDependency> {
+  using type = aux::conditional_t<TDependency::template is_referable<T&&, TProvider>::value, T&&, T>;
 };
 #endif  // __pph__
 
-template <class T, class TDependency>
-using referable_t = typename referable<T, TDependency>::type;
+template <class T, class TProvider, class TDependency>
+using referable_t = typename referable<T, TProvider, TDependency>::type;
 
 #if defined(__MSVC__)  // __pph__
 template <class T, class TInjector>
@@ -276,7 +276,7 @@ class injector __BOOST_DI_CORE_INJECTOR_POLICY()(<TConfig, pool<>, TDeps...>) : 
     using provider_t = successful::provider<ctor_t, injector>;
     using wrapper_t =
         decltype(static_cast<dependency__<dependency_t>&>(dependency).template create<T, TName>(provider_t{this}));
-    using create_t = referable_t<T, dependency__<dependency_t>>;
+    using create_t = referable_t<T, provider_t, dependency__<dependency_t>>;
     __BOOST_DI_CORE_INJECTOR_POLICY(
         using ctor_args_t = typename ctor_t::second::second;
         policy::template call<arg_wrapper<T, TName, TIsRoot, ctor_args_t, dependency_t, pool_t>>(TConfig::policies(this));)
