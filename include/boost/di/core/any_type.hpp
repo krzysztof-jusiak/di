@@ -15,7 +15,7 @@ namespace core {
 
 template <class T, class TInjector, class TError = aux::false_type>
 struct is_referable__ {
-  static constexpr auto value = dependency__<binder::resolve_t<TInjector, T>>::template is_referable<T>::value;
+  static constexpr auto value = dependency__<binder::resolve_t<TInjector, T>>::template is_referable<T, TInjector>::value;
 };
 
 template <class T, class TInjector>

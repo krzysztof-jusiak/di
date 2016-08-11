@@ -15,8 +15,8 @@ class deduce {
   template <class TExpected, class TGiven, class = void>
   class scope {
    public:
-    template <class T, class TProvider>
-    using is_referable = typename type_traits::scope_traits_t<T>::template scope<TExpected, TGiven>::template is_referable<T, TProvider>;
+    template <class T, class TInjector>
+    using is_referable = typename type_traits::scope_traits_t<T>::template scope<TExpected, TGiven>::template is_referable<T, TInjector>;
 
     template <class T, class TName, class TProvider>
     static decltype(typename type_traits::scope_traits_t<T>::template scope<TExpected, TGiven>{}.template try_create<T, TName>(

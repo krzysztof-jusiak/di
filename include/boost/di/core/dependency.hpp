@@ -30,18 +30,18 @@ struct scope_adapter {
       using type = T;
     };
 
-    template<class T, class TProvider>
-    struct underlying_type<T, TProvider, __BOOST_DI_REQUIRES(aux::is_callable<T>::value)>
+    template<class T, class TInjector>
+    struct underlying_type<T, TInjector, __BOOST_DI_REQUIRES(aux::is_callable<T>::value)>
     {
-      using type = decltype(aux::declval<T>()(aux::declval<typename TProvider::injector_t>()));
+      using type = decltype(aux::declval<T>()(aux::declval<TInjector>()));
     };
 
-    template<class TProvider, class T = typename underlying_type<U, TProvider>::type>
+    template<class TInjector, class T = typename underlying_type<U, TInjector>::type>
     using is_shared = aux::integral_constant<bool, is_smart<T>::value || is_smart<U>::value>;
 
    public:
-    template <class T, class TProvider>
-    using is_referable = typename TScope::template scope<TExpected, TGiven, is_shared<TProvider>>::template is_referable<T, TProvider>;
+    template <class T, class TInjector>
+    using is_referable = typename TScope::template scope<TExpected, TGiven, is_shared<TInjector>>::template is_referable<T, TInjector>;
 
     explicit scope(const U& object) : object_(object) {}
 
