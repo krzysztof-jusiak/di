@@ -23,7 +23,7 @@ struct impl1 : i1 {
 struct custom_scope {
   template <class TExpected, class>
   struct scope {
-    template <class>
+    template <class, class>
     using is_referable = std::false_type;
 
     template <class T, class, class TProvider>

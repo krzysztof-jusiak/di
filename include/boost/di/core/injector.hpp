@@ -57,7 +57,7 @@ struct referable<T&, TInjector, TDependency> {
 };
 
 template <class T, class TInjector, class TDependency>
-struct referable<const T&, TInjector,  TDependency> {
+struct referable<const T&, TInjector, TDependency> {
   using type = aux::conditional_t<TDependency::template is_referable<const T&, TInjector>::value, const T&, T>;
 };
 

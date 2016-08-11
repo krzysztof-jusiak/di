@@ -54,7 +54,7 @@ struct wrapper {
 
 class instance {
  public:
-  template <class, class TGiven, class = void, class = int>
+  template <class, class TGiven, class = int>
   struct scope {
     template <class, class>
     using is_referable = aux::false_type;
@@ -73,7 +73,7 @@ class instance {
   };
 
   template <class TExpected, class TGiven>
-  struct scope<TExpected, std::shared_ptr<TGiven>, void> {
+  struct scope<TExpected, std::shared_ptr<TGiven>> {
     template <class T, class>
     using is_referable = typename wrappers::shared<instance, TGiven>::template is_referable<aux::remove_qualifiers_t<T>>;
 
@@ -91,7 +91,7 @@ class instance {
   };
 
   template <class TExpected, class TGiven>
-  struct scope<TExpected, std::initializer_list<TGiven>, void> {
+  struct scope<TExpected, std::initializer_list<TGiven>> {
     template <class, class>
     using is_referable = aux::false_type;
 
@@ -109,7 +109,7 @@ class instance {
   };
 
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven&, void, __BOOST_DI_REQUIRES(!aux::is_callable<TGiven>::value)> {
+  struct scope<TExpected, TGiven&, __BOOST_DI_REQUIRES(!aux::is_callable<TGiven>::value)> {
     template <class, class>
     using is_referable = aux::true_type;
 
@@ -127,7 +127,7 @@ class instance {
   };
 
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven, void, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
+  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
     template <class, class>
     using is_referable =
         aux::integral_constant<bool, !aux::is_callable<TExpected>::value || !detail::has_result_type<TExpected>::value>;
@@ -140,7 +140,8 @@ class instance {
 #else   // __pph__
 
     template <class T, class, class TProvider,
-              __BOOST_DI_REQUIRES(!detail::is_expr<TGiven, TProvider, const detail::arg<T, TExpected, TGiven>&>::value && !detail::is_expr<TGiven, TProvider>::value && aux::is_callable<TGiven>::value &&
+              __BOOST_DI_REQUIRES(!detail::is_expr<TGiven, TProvider, const detail::arg<T, TExpected, TGiven>&>::value &&
+                                  !detail::is_expr<TGiven, TProvider>::value && aux::is_callable<TGiven>::value &&
                                   aux::is_callable<TExpected>::value) = 0>
     static wrappers::unique<instance, TExpected> try_create(const TProvider&) noexcept;
 
@@ -193,7 +194,7 @@ class instance {
   };
 
   template <class _, class... Ts>
-  class scope<_, aux::type_list<Ts...>, void> {
+  class scope<_, aux::type_list<Ts...>> {
     template <class>
     struct injector__;
 

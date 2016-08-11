@@ -1137,7 +1137,7 @@ struct unique<TScope, T*> {
 namespace scopes {
 class unique {
  public:
-  template <class, class, class = void>
+  template <class, class>
   class scope {
    public:
     template <class, class>
@@ -1182,7 +1182,7 @@ using scope_traits_t = typename scope_traits<T>::type;
 namespace scopes {
 class deduce {
  public:
-  template <class TExpected, class TGiven, class = void>
+  template <class TExpected, class TGiven>
   class scope {
    public:
     template <class T, class TInjector>
@@ -1376,7 +1376,7 @@ struct wrapper {
 };
 class instance {
  public:
-  template <class, class TGiven, class = void, class = int>
+  template <class, class TGiven, class = int>
   struct scope {
     template <class, class>
     using is_referable = aux::false_type;
@@ -1390,7 +1390,7 @@ class instance {
     TGiven object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, std::shared_ptr<TGiven>, void> {
+  struct scope<TExpected, std::shared_ptr<TGiven>> {
     template <class T, class>
     using is_referable = typename wrappers::shared<instance, TGiven>::template is_referable<aux::remove_qualifiers_t<T>>;
     explicit scope(const std::shared_ptr<TGiven>& object) : object_{object} {}
@@ -1403,7 +1403,7 @@ class instance {
     std::shared_ptr<TGiven> object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, std::initializer_list<TGiven>, void> {
+  struct scope<TExpected, std::initializer_list<TGiven>> {
     template <class, class>
     using is_referable = aux::false_type;
     scope(const std::initializer_list<TGiven>& object) : object_(object) {}
@@ -1416,7 +1416,7 @@ class instance {
     std::initializer_list<TGiven> object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven&, void, __BOOST_DI_REQUIRES(!aux::is_callable<TGiven>::value)> {
+  struct scope<TExpected, TGiven&, __BOOST_DI_REQUIRES(!aux::is_callable<TGiven>::value)> {
     template <class, class>
     using is_referable = aux::true_type;
     explicit scope(TGiven& object) : object_{object} {}
@@ -1429,7 +1429,7 @@ class instance {
     wrappers::shared<instance, TGiven&> object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven, void, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
+  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
     template <class, class>
     using is_referable =
         aux::integral_constant<bool, !aux::is_callable<TExpected>::value || !detail::has_result_type<TExpected>::value>;
@@ -1484,7 +1484,7 @@ class instance {
     TGiven object_;
   };
   template <class _, class... Ts>
-  class scope<_, aux::type_list<Ts...>, void> {
+  class scope<_, aux::type_list<Ts...>> {
     template <class>
     struct injector__;
     template <class TName, class T>
@@ -1583,11 +1583,18 @@ struct scope_adapter {
     };
     template <class TInjector, class T = typename underlying_type<U, TInjector>::type>
     using is_shared = aux::integral_constant<bool, is_smart<T>::value || is_smart<U>::value>;
+    template <class Scope, class>
+    struct get_scope {
+      using type = typename Scope::template scope<TExpected, TGiven>;
+    };
+    template <class T>
+    struct get_scope<scopes::singleton, T> {
+      using type = typename scopes::singleton::template scope<TExpected, TGiven, T>;
+    };
 
    public:
     template <class T, class TInjector>
-    using is_referable =
-        typename TScope::template scope<TExpected, TGiven, is_shared<TInjector>>::template is_referable<T, TInjector>;
+    using is_referable = typename get_scope<TScope, is_shared<TInjector>>::type::template is_referable<T, TInjector>;
     explicit scope(const U& object) : object_(object) {}
     template <class TInjector>
     struct provider {
@@ -1605,12 +1612,12 @@ struct scope_adapter {
       const U& object_;
     };
     template <class T, class TName, class TProvider>
-    static decltype(typename TScope::template scope<TExpected, TGiven, is_shared<TProvider>>{}.template try_create<T, TName>(
+    static decltype(typename get_scope<TScope, is_shared<typename TProvider::injector_t>>::type{}.template try_create<T, TName>(
         aux::declval<provider<typename TProvider::injector_t>>()))
     try_create(const TProvider&);
     template <class T, class TName, class TProvider>
     auto create(const TProvider& pr) {
-      using scope = typename TScope::template scope<TExpected, TGiven, is_shared<TProvider>>;
+      using scope = typename get_scope<TScope, is_shared<typename TProvider::injector_t>>::type;
       return scope{}.template create<T, TName>(provider<typename TProvider::injector_t>{*pr.injector_, object_});
     }
     U object_;
@@ -1728,10 +1735,10 @@ class dependency
   }
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
-  auto to(T&& object) noexcept {
+  auto to(const T& object) noexcept {
     using dependency =
         dependency<scope_adapter<T, TScope>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
-    return dependency{static_cast<T&&>(object)};
+    return dependency{object};
   }
   template <class...>
   dependency& to(...) const noexcept;

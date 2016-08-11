@@ -34,7 +34,7 @@ class custom_scope {
     };
 
    public:
-    template <class>
+    template <class, class>
     using is_referable = std::false_type;
 
     template <class, class, class TProvider>

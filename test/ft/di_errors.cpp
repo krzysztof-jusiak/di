@@ -1348,3 +1348,14 @@ int main() { di::make_injector<test_config>(); }
                           int main() { using type = std::remove_reference_t<decltype(di::bind<int>())>::is_referable<int>; });
     };
 #endif
+
+    /// TODO
+    //{
+    // const auto injector = di::make_injector(
+    // di::bind<int>.to(42).in(di::singleton)
+    //, di::bind<double>.to(82.0)
+    //);
+
+    // std::cout << injector.create<int&>() << std::endl;
+
+    //}

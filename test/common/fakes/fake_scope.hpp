@@ -16,7 +16,7 @@ template <bool Priority = false>
 struct fake_scope {
   template <class TExpected, class>
   struct scope {
-    template <class T>
+    template <class, class>
     using is_referable = std::false_type;
 
     explicit scope(const TExpected& = {}) { ++ctor_calls(); }

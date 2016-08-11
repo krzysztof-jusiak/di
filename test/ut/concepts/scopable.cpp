@@ -26,7 +26,7 @@ test none = [] {
 struct scope_type {
   template <class, class>
   struct scope {
-    template <class>
+    template <class, class>
     using is_referable = std::false_type;
 
     template <class T, class TProvider>
@@ -61,7 +61,7 @@ class scope_missing_create {
  public:
   template <class, class>
   struct scope {
-    template <class>
+    template <class, class>
     using is_referable = std::false_type;
 
     template <class T, class TProvider>
@@ -78,7 +78,7 @@ class scope_missing_try_create {
  public:
   template <class, class>
   struct scope {
-    template <class>
+    template <class, class>
     using is_referable = std::false_type;
 
     template <class T, class TProvider>

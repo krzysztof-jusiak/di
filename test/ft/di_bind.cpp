@@ -1059,6 +1059,61 @@ test bind_unique_ptr_dtor_defined_with_move_ctor = [] {
   expect(nullptr == object.i1_.get());
 };
 
+test bind_value_in_singleton_scope = [] {
+  constexpr auto i = 42;
+  const auto injector = di::make_injector(di::bind<int>.in(di::singleton).to(i));
+
+  expect(i == injector.create<int &>());
+};
+
+test bind_value_in_singleton_scope_shared = [] {
+  constexpr auto i = 42;
+  const auto injector = di::make_injector(di::bind<int>.in(di::singleton).to(std::make_shared<int>(i)));
+
+  expect(i == injector.create<int &>());
+  expect(i == *injector.create<std::shared_ptr<int>>());
+};
+
+test bind_intilizer_list_in_singleton_scope = [] {
+  const auto injector = di::make_injector(di::bind<int[]>.in(di::singleton).to({1, 2, 3}));
+
+  const auto object = injector.create<std::vector<int>>();
+  expect(object.size() == 3);
+  auto it = object.begin();
+  expect(*(std::next(it, 0)) == 1);
+  expect(*(std::next(it, 1)) == 2);
+  expect(*(std::next(it, 2)) == 3);
+
+  //TODO
+  //expect(&object = &injector.create<std::vector<int> &>());
+};
+
+test bind_lambda_expr_in_singleton_scope_shared = [] {
+  const auto injector =
+      di::make_injector(di::bind<i1>().in(di::singleton).to([&](const auto &) { return std::make_shared<impl1>(); }));
+
+  const auto object = injector.create<std::shared_ptr<i1>>();
+  expect(dynamic_cast<impl1 *>(object.get()));
+  expect(object.get() == &injector.create<i1 &>());
+};
+
+test bind_lambda_expr_in_unique_scope_shared = [] {
+  const auto injector =
+      di::make_injector(di::bind<i1>().in(di::unique).to([&](const auto &) { return std::make_shared<impl1>(); }));
+
+  const auto object = injector.create<std::shared_ptr<i1>>();
+  expect(dynamic_cast<impl1 *>(object.get()));
+};
+
+test bind_lambda_expr_in_singleton_scope_via_unique_ptr = [] {
+  const auto injector =
+      di::make_injector(di::bind<i1>().in(di::singleton).to([&](const auto &) { return std::make_unique<impl1>(); }));
+
+  const auto object = injector.create<std::shared_ptr<i1>>();
+  expect(dynamic_cast<impl1 *>(object.get()));
+  expect(object.get() == &injector.create<i1 &>());
+};
+
 #if defined(__cpp_variable_templates)
 test bind_mix = [] {
   constexpr auto i = 42;

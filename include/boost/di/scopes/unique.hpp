@@ -14,7 +14,7 @@ namespace scopes {
 
 class unique {
  public:
-  template <class, class, class = void>
+  template <class, class>
   class scope {
    public:
     template <class, class>

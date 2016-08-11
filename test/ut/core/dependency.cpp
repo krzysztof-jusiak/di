@@ -49,11 +49,11 @@ test named = [] {
 };
 
 test in = [] {
-  using dep1 = dependency<fake_scope<>, int>;
-  expect(std::is_same<fake_scope<>, typename dep1::scope>::value);
+  using dep1 = dependency<scopes::deduce, int>;
+  expect(std::is_same<scopes::deduce, typename dep1::scope>::value);
 
-  using dep2 = decltype(dep1{}.in(scopes::deduce{}));
-  expect(std::is_same<scopes::deduce, typename dep2::scope>::value);
+  using dep2 = decltype(dep1{}.in(fake_scope<>{}));
+  expect(std::is_same<fake_scope<>, typename dep2::scope>::value);
 };
 
 test to = [] {

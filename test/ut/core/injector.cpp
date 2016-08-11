@@ -8,6 +8,7 @@
 #include "boost/di/core/injector.hpp"
 #include "common/fakes/fake_config.hpp"
 #include "common/fakes/fake_dependency.hpp"
+#include "common/fakes/fake_injector.hpp"
 
 namespace core {
 
@@ -59,19 +60,19 @@ using dep = fake_dependency<T, fake_scope<>, TIsReferable>;
 struct c {};
 
 test referable_types = [] {
-  static_expect(std::is_same<int, referable_t<int, dep<int, std::false_type>>>::value);
-  static_expect(std::is_same<int, referable_t<int, dep<int, std::true_type>>>::value);
-  static_expect(std::is_same<c, referable_t<const c&, dep<c, std::false_type>>>::value);
-  static_expect(std::is_same<const c&, referable_t<const c&, dep<c, std::true_type>>>::value);
-  static_expect(std::is_same<c, referable_t<c&, dep<c, std::false_type>>>::value);
-  static_expect(std::is_same<c&, referable_t<c&, dep<c, std::true_type>>>::value);
-  static_expect(std::is_same<c, referable_t<c&, dep<c, std::false_type>>>::value);
-  static_expect(std::is_same<c&&, referable_t<c&&, dep<c, std::true_type>>>::value);
-  static_expect(std::is_same<int, referable_t<int&, dep<int, std::false_type>>>::value);
-  static_expect(std::is_same<int&, referable_t<int&, dep<int, std::true_type>>>::value);
-  static_expect(std::is_same<int, referable_t<const int&, dep<int, std::false_type>>>::value);
-  static_expect(std::is_same<const int&, referable_t<const int&, dep<int, std::true_type>>>::value);
-  static_expect(std::is_same<int&&, referable_t<int&&, dep<int, std::true_type>>>::value);
+  static_expect(std::is_same<int, referable_t<int, fake_injector<>, dep<int, std::false_type>>>::value);
+  static_expect(std::is_same<int, referable_t<int, fake_injector<>, dep<int, std::true_type>>>::value);
+  static_expect(std::is_same<c, referable_t<const c&, fake_injector<>, dep<c, std::false_type>>>::value);
+  static_expect(std::is_same<const c&, referable_t<const c&, fake_injector<>, dep<c, std::true_type>>>::value);
+  static_expect(std::is_same<c, referable_t<c&, fake_injector<>, dep<c, std::false_type>>>::value);
+  static_expect(std::is_same<c&, referable_t<c&, fake_injector<>, dep<c, std::true_type>>>::value);
+  static_expect(std::is_same<c, referable_t<c&, fake_injector<>, dep<c, std::false_type>>>::value);
+  static_expect(std::is_same<c&&, referable_t<c&&, fake_injector<>, dep<c, std::true_type>>>::value);
+  static_expect(std::is_same<int, referable_t<int&, fake_injector<>, dep<int, std::false_type>>>::value);
+  static_expect(std::is_same<int&, referable_t<int&, fake_injector<>, dep<int, std::true_type>>>::value);
+  static_expect(std::is_same<int, referable_t<const int&, fake_injector<>, dep<int, std::false_type>>>::value);
+  static_expect(std::is_same<const int&, referable_t<const int&, fake_injector<>, dep<int, std::true_type>>>::value);
+  static_expect(std::is_same<int&&, referable_t<int&&, fake_injector<>, dep<int, std::true_type>>>::value);
 };
 
 test def_ctor = [] {

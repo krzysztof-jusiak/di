@@ -18,57 +18,68 @@
 
 namespace core {
 
-template<class U, class TScope>
+template <class U, class TScope>
 struct scope_adapter {
   template <class TExpected, class TGiven>
   class scope {
-    template<class T>
+    template <class T>
     using is_smart = aux::integral_constant<bool, !aux::is_same<aux::remove_smart_ptr_t<T>, T>::value>;
 
-    template<class T, class, class = int>
+    template <class T, class, class = int>
     struct underlying_type : aux::true_type {
       using type = T;
     };
 
-    template<class T, class TInjector>
-    struct underlying_type<T, TInjector, __BOOST_DI_REQUIRES(aux::is_callable<T>::value)>
-    {
+    template <class T, class TInjector>
+    struct underlying_type<T, TInjector, __BOOST_DI_REQUIRES(aux::is_callable<T>::value)> {
       using type = decltype(aux::declval<T>()(aux::declval<TInjector>()));
     };
 
-    template<class TInjector, class T = typename underlying_type<U, TInjector>::type>
+    template <class TInjector, class T = typename underlying_type<U, TInjector>::type>
     using is_shared = aux::integral_constant<bool, is_smart<T>::value || is_smart<U>::value>;
+
+    template <class Scope, class>
+    struct get_scope {
+      using type = typename Scope::template scope<TExpected, TGiven>;
+    };
+
+    template <class T>
+    struct get_scope<scopes::singleton, T> {
+      using type = typename scopes::singleton::template scope<TExpected, TGiven, T>;
+    };
 
    public:
     template <class T, class TInjector>
-    using is_referable = typename TScope::template scope<TExpected, TGiven, is_shared<TInjector>>::template is_referable<T, TInjector>;
+    using is_referable = typename get_scope<TScope, is_shared<TInjector>>::type::template is_referable<T, TInjector>;
 
     explicit scope(const U& object) : object_(object) {}
 
-    template<class TInjector>
+    template <class TInjector>
     struct provider {
-        template <class TMemory = type_traits::heap, __BOOST_DI_REQUIRES(aux::always<TMemory>::value && aux::is_callable<U>::value) = 0>
-          auto get(const TMemory& = {}) const {
-            return object_(injector_);
-          }
+      template <class TMemory = type_traits::heap,
+                __BOOST_DI_REQUIRES(aux::always<TMemory>::value&& aux::is_callable<U>::value) = 0>
+      auto get(const TMemory& = {}) const {
+        return object_(injector_);
+      }
 
-        template <class TMemory = type_traits::heap, __BOOST_DI_REQUIRES(aux::always<TMemory>::value && !aux::is_callable<U>::value) = 0>
-          auto get(const TMemory& = {}) const {
-            return object_;
-          }
+      template <class TMemory = type_traits::heap,
+                __BOOST_DI_REQUIRES(aux::always<TMemory>::value && !aux::is_callable<U>::value) = 0>
+      auto get(const TMemory& = {}) const {
+        return object_;
+      }
 
-        const TInjector& injector_;
-        const U& object_;
+      const TInjector& injector_;
+      const U& object_;
     };
 
     template <class T, class TName, class TProvider>
-    static decltype(typename TScope::template scope<TExpected, TGiven, is_shared<TProvider>>{}.template try_create<T, TName>(
+    static decltype(typename get_scope<TScope, is_shared<typename TProvider::injector_t>>::type{}.template try_create<T, TName>(
         aux::declval<provider<typename TProvider::injector_t>>()))
     try_create(const TProvider&);
 
     template <class T, class TName, class TProvider>
     auto create(const TProvider& pr) {
-      using scope = typename TScope::template scope<TExpected, TGiven, is_shared<TProvider>>;
+      using scope = typename get_scope<TScope, is_shared<typename TProvider::injector_t>>::type;
       return scope{}.template create<T, TName>(provider<typename TProvider::injector_t>{*pr.injector_, object_});
     }
 
@@ -112,8 +123,7 @@ class dependency
   using scope_t = typename TScope::template scope<TExpected, TGiven>;
 
   template <class T>
-  using externable = aux::integral_constant<bool, aux::always<T>::value &&
-                                                      aux::is_same<TExpected, TGiven>::value>;
+  using externable = aux::integral_constant<bool, aux::always<T>::value && aux::is_same<TExpected, TGiven>::value>;
 
   template <class T>
   struct ref_traits {
@@ -155,7 +165,7 @@ class dependency
   using name = TName;
   using priority = TPriority;
 
-  dependency() noexcept { }
+  dependency() noexcept {}
 
   template <class T>
   explicit dependency(T&& object) noexcept : scope_t(static_cast<T&&>(object)) {}
@@ -170,8 +180,9 @@ class dependency
     return dependency<TScope, TExpected, TGiven, T, TPriority>{static_cast<dependency&&>(*this)};
   }
 
-  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::scopable<T>) = 0, __BOOST_DI_REQUIRES(aux::always<T>::value && aux::is_same<TScope, scopes::deduce>::value) = 0>
-  auto in(const T&) noexcept {
+  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::scopable<T>) = 0,
+            __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
+  auto in(const T&)noexcept {
     return dependency<T, TExpected, TGiven, TName, TPriority>{};
   }
 
@@ -187,21 +198,24 @@ class dependency
     return dependency<TScope, array<type>, array<type, Ts...>, TName, TPriority>{};
   }
 
-  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0, __BOOST_DI_REQUIRES(aux::always<T>::value && aux::is_same<TScope, scopes::deduce>::value) = 0>
+  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,
+            __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
     using dependency = dependency<scopes::instance, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
 
-  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0, __BOOST_DI_REQUIRES(aux::always<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0>
+  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,
+            __BOOST_DI_REQUIRES(aux::always<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
-    using dependency = dependency<scope_adapter<std::initializer_list<T>, TScope>, array<type>, std::initializer_list<T>, TName, TPriority>;
+    using dependency =
+        dependency<scope_adapter<std::initializer_list<T>, TScope>, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
 
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && aux::is_same<TScope, scopes::deduce>::value) = 0,
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
     using dependency =
@@ -211,10 +225,10 @@ class dependency
 
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
-  auto to(T&& object) noexcept {
+  auto to(const T& object) noexcept {
     using dependency =
         dependency<scope_adapter<T, TScope>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
-    return dependency{static_cast<T&&>(object)};
+    return dependency{object};
   }
 
   template <class...>
