@@ -26,9 +26,7 @@ public:
   reference_wrapper& operator=(const reference_wrapper& x) noexcept = default;
  
   // access
-  operator T& () const noexcept { return *_ptr; }
-  T& get() const noexcept { return *_ptr; }
- 
+  operator T&() const noexcept { return *_ptr; }
 
 private:
   T* _ptr;

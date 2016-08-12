@@ -70,6 +70,11 @@ class deduce;
 class external;
 class singleton;
 class unique;
+
+namespace detail {
+template<class, class> struct underlying;
+struct expose;
+}
 }  // scopes
 
 #endif

@@ -97,6 +97,16 @@ class dependency
     using type = aux::decay_t<T>;
   };
 
+  template<class T>
+  struct re {
+    using type = T;
+  };
+
+  template<class T>
+  struct re<reference_wrapper<T>> {
+    using type = T;
+  };
+
   template <class T, class U>
   using deduce_traits_t = typename deduce_traits<T, U>::type;
 
@@ -150,14 +160,14 @@ class dependency
 
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value && aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
-  auto to(reference_wrapper<T> object) noexcept {
+  auto to(const reference_wrapper<T>& object) noexcept {
     using dependency =
         dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{object};
   }
 
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
-            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
+            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, typename re<aux::decay_t<T>>::type, aux::valid<>>) = 0>
   auto to(const T& object) noexcept {
     using dependency =
         dependency<scopes::detail::underlying<typename ref_traits<T>::type, TScope>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
