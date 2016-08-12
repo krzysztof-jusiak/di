@@ -32,13 +32,13 @@ class singleton {
 
     template <class, class, class TProvider>
     auto create(const TProvider& provider) {
-      return create_impl(provider);
+      return create_impl<typename TProvider::injector_t>(provider.get(type_traits::stack{}));
     }
 
    private:
-    template <class TProvider>
-    wrappers::shared<singleton, T&> create_impl(const TProvider& provider) {
-      static auto object(provider.get(type_traits::stack{}));
+    template <class, class U>
+    wrappers::shared<singleton, T&> create_impl(U&& value) {
+      static auto object(static_cast<U&&>(value));
       return wrappers::shared<singleton, T&>(object);
     }
   };
@@ -55,14 +55,15 @@ class singleton {
 
     template <class, class, class TProvider>
     auto create(const TProvider& provider) {
-      return create_impl<aux::decay_t<decltype(provider.get())>>(provider);
+      return create_impl<typename TProvider::injector_t>(provider.get());
     }
 
    private:
-    template <class T_, class TProvider>
-    auto create_impl(const TProvider& provider) {
-      static std::shared_ptr<T_> object{provider.get()};
-      return wrappers::shared<singleton, T_, std::shared_ptr<T_>&>{object};
+    template <class, class U>
+    auto create_impl(U&& value) {
+      using type = aux::decay_t<U>;
+      static std::shared_ptr<type> object(static_cast<U&&>(value));
+      return wrappers::shared<singleton, type, std::shared_ptr<type>&>{object};
     }
   };
 };

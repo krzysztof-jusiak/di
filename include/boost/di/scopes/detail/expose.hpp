@@ -13,6 +13,13 @@
 
 namespace scopes {
 namespace detail {
+
+  template <class T>
+  struct wrapper {
+    inline operator T() noexcept { return static_cast<T&&>(object); }
+    T object;
+  };
+
   struct expose {
   template <class, class>
   class scope;

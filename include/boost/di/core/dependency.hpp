@@ -67,8 +67,18 @@ class dependency
     using type = TExpected;
   };
 
+  template <int N>
+  struct ref_traits<char [N]> {
+    using type = TExpected;
+  };
+
   template <class R, class... Ts>
   struct ref_traits<R (&)(Ts...)> {
+    using type = TExpected;
+  };
+
+  template <class R, class... Ts>
+  struct ref_traits<R (Ts...)> {
     using type = TExpected;
   };
 
@@ -138,28 +148,19 @@ class dependency
     return dependency{object};
   }
 
-  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,
-            __BOOST_DI_REQUIRES(aux::always<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0>
-  auto to(std::initializer_list<T>&& object) noexcept {
-    using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && aux::is_same<TScope, scopes::deduce>::value) = 0,
+            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
+  auto to(reference_wrapper<T> object) noexcept {
     using dependency =
-        dependency<scopes::detail::underlying<std::initializer_list<T>, TScope>, array<type>, std::initializer_list<T>, TName, TPriority>;
+        dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{object};
   }
 
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0,
-            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
-  auto to(T&& object) noexcept {
-    using dependency =
-        dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
-    return dependency{static_cast<T&&>(object)};
-  }
-
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0,
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(const T& object) noexcept {
     using dependency =
-        dependency<scopes::detail::underlying<T, TScope>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+        dependency<scopes::detail::underlying<typename ref_traits<T>::type, TScope>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{object};
   }
 

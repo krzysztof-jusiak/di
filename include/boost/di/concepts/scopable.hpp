@@ -24,6 +24,8 @@ struct scope {
 
 template <class T>
 struct provider__ {
+  using injector_t = void;
+
   template <class TMemory = type_traits::heap>
   aux::conditional_t<aux::is_same<TMemory, type_traits::stack>::value, T, T*> try_get(const TMemory& = {}) const;
 

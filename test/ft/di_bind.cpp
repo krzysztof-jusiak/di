@@ -303,7 +303,7 @@ test bind_shared_ptr_interface = [] {
 
 test scopes_instance_interface_ptr = [] {
   std::unique_ptr<i1> object = std::make_unique<impl1>();
-  auto injector = di::make_injector(di::bind<i1>().to(*object));
+  auto injector = di::make_injector(di::bind<i1>().to(di::ref(*object)));
   injector.create<const i1 &>();
   injector.create<i1 &>();
 };
@@ -395,12 +395,13 @@ test instances_ref_cref = [] {
     const double &d_;
   };
 
-  auto injector = make_injector(di::bind<int>().to(i), di::bind<double>().to(d));
+  auto injector = make_injector(di::bind<int>().to(di::ref(i)), di::bind<double>().to(di::ref(d)));
   auto object = injector.create<refs>();
 
   expect(i == object.i_);
   expect(d == object.d_);
 };
+
 
 test bind_chars_to_string = [] {
   auto injector = di::make_injector(di::bind<std::string>().to("str"));
@@ -603,7 +604,7 @@ test bind_non_owning_ptr = [] {
   struct c {
     c(Pointer &ptr) { expect(i == ptr); }
   };
-  auto module = [](Pointer *ptr) { return di::bind<Pointer>().to(*ptr); };
+  auto module = [](Pointer *ptr) { return di::bind<Pointer>().to(di::ref(*ptr)); };
   di::aux::owner<Pointer *> ptr{new Pointer{i}};
   auto injector = di::make_injector(module(ptr));
 
@@ -1070,17 +1071,8 @@ test bind_value_in_singleton_scope_shared = [] {
   const auto injector = di::make_injector(di::bind<int>().in(di::singleton).to(std::make_shared<int>(i)));
   expect(i == injector.create<int &>());
   expect(i == *injector.create<std::shared_ptr<int>>());
+  expect(&injector.create<int &>() == injector.create<std::shared_ptr<int>>().get());
 };
-
-//test bind_intilizer_list_in_singleton_scope = [] {
-  //const auto injector = di::make_injector(di::bind<int[]>().in(di::singleton).to({1, 2, 3}));
-  //const auto object = injector.create<std::vector<int>>();
-  //expect(3 == object.size());
-  //auto it = object.begin();
-  //expect(*(std::next(it, 0)) == 1);
-  //expect(*(std::next(it, 1)) == 2);
-  //expect(*(std::next(it, 2)) == 3);
-//};
 
 test bind_lambda_expr_in_singleton_scope_shared = [] {
   const auto injector =
