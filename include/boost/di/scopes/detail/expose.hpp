@@ -120,7 +120,6 @@ namespace detail {
    private:
     injector* injector_;
   };
- 
 };
 
 }}

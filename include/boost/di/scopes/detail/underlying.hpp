@@ -108,17 +108,17 @@ struct underlying {
     struct provider {
       using injector_t = TInjector;
 
-      template <class TMemory = type_traits::heap, 
-         __BOOST_DI_REQUIRES(aux::always<TMemory>::value && 
-                             !detail::is_expr<TGiven, TInjector, const detail::arg<T, TExpected, TGiven>&>::value && !is_expr<TGiven, TInjector>::value && 
-                             aux::is_callable<TGiven>::value && 
+      template <class TMemory = type_traits::heap,
+         __BOOST_DI_REQUIRES(aux::always<TMemory>::value &&
+                             !detail::is_expr<TGiven, TInjector, const detail::arg<T, TExpected, TGiven>&>::value && !is_expr<TGiven, TInjector>::value &&
+                             aux::is_callable<TGiven>::value &&
                              aux::is_callable<TExpected>::value) = 0>
       decltype(auto) get(const TMemory& = {}) const {
         return object_;
       }
 
-      template <class TMemory = type_traits::heap, 
-        __BOOST_DI_REQUIRES(aux::always<TMemory>::value && 
+      template <class TMemory = type_traits::heap,
+        __BOOST_DI_REQUIRES(aux::always<TMemory>::value &&
                             !detail::is_expr<TGiven, TInjector, const detail::arg<T, TExpected, TGiven>&>::value && !is_expr<TGiven, TInjector>::value &&
                             aux::is_callable_with<TGiven>::value &&
                             !aux::is_callable<TExpected>::value) = 0>

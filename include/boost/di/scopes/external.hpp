@@ -16,15 +16,15 @@ class reference_wrapper {
 public:
   // types
   typedef T type;
- 
+
   // construct/copy/destroy
   reference_wrapper(T& ref) noexcept : _ptr(&ref) {}
   reference_wrapper(T&&) = delete;
   reference_wrapper(const reference_wrapper&) noexcept = default;
- 
+
   // assignment
   reference_wrapper& operator=(const reference_wrapper& x) noexcept = default;
- 
+
   // access
   operator T&() const noexcept { return *_ptr; }
 
