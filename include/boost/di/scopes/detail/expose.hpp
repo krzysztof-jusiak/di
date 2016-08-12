@@ -1,3 +1,22 @@
+// Copyright (c) 2012-2016 Krzysztof Jusiak (krzysztof at jusiak dot net)
+//
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
+//
+#ifndef BOOST_DI_SCOPES_DETAIL_EXPOSE_HPP
+#define BOOST_DI_SCOPES_DETAIL_EXPOSE_HPP
+
+#include "boost/di/aux_/type_traits.hpp"
+#include "boost/di/concepts/creatable.hpp"
+#include "boost/di/fwd.hpp"
+#include "boost/di/core/wrapper.hpp"
+
+namespace scopes {
+namespace detail {
+  struct expose {
+  template <class, class>
+  class scope;
+
   template <class _, class... Ts>
   class scope<_, aux::type_list<Ts...>> {
     template <class>
@@ -94,3 +113,9 @@
    private:
     injector* injector_;
   };
+ 
+};
+
+}}
+
+#endif

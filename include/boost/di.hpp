@@ -266,7 +266,7 @@ class dependency;
 }
 namespace scopes {
 class deduce;
-class instance;
+class external;
 class singleton;
 class unique;
 }
@@ -1201,149 +1201,8 @@ class deduce {
   };
 };
 }
-namespace concepts {
-template <class T>
-struct abstract_type {
-  struct is_not_bound {
-    operator T*() const {
-      using constraint_not_satisfied = is_not_bound;
-      return constraint_not_satisfied{}.error();
-    }
-    // clang-format off
-    static inline T*
- error(_ = "type is not bound, did you forget to add: 'di::bind<interface>.to<implementation>()'?");
-    // clang-format on
-  };
-  template <class TName>
-  struct named {
-    struct is_not_bound {
-      operator T*() const {
-        using constraint_not_satisfied = is_not_bound;
-        return constraint_not_satisfied{}.error();
-      }
-      // clang-format off
-      static inline T*
-   error(_ = "type is not bound, did you forget to add: 'di::bind<interface>.named(name).to<implementation>()'?");
-      // clang-format on
-    };
-  };
-};
-template <class TScope, class T>
-struct scoped {
-  template <class To>
-  struct is_not_convertible_to {
-    operator To() const {
-      using constraint_not_satisfied = is_not_convertible_to;
-      return constraint_not_satisfied{}.error();
-    }
-    // clang-format off
-    static inline To
- error(_ = "scoped object is not convertible to the requested type, did you mistake the scope: 'di::bind<T>.in(scope)'?");
-    // clang-format on
-  };
-};
-template <class T>
-struct scoped<scopes::instance, T> {
-  template <class To>
-  struct is_not_convertible_to {
-    operator To() const {
-      using constraint_not_satisfied = is_not_convertible_to;
-      return constraint_not_satisfied{}.error();
-    }
-    // clang-format off
-    static inline To
- error(_ = "instance is not convertible to the requested type, verify binding: 'di::bind<T>.to(value)'?");
-    // clang-format on
-  };
-};
-template <class T>
-struct type {
-  struct has_ambiguous_number_of_constructor_parameters {
-    template <int Given>
-    struct given {
-      template <int Expected>
-      struct expected {
-        operator T*() const {
-          using constraint_not_satisfied = expected;
-          return constraint_not_satisfied{}.error();
-        }
-        // clang-format off
-        static inline T*
-  error(_ = "verify BOOST_DI_INJECT_TRAITS or di::ctor_traits");
-        // clang-format on
-      };
-    };
-  };
-  struct has_to_many_constructor_parameters {
-    template <int TMax>
-    struct max {
-      operator T*() const {
-        using constraint_not_satisfied = max;
-        return constraint_not_satisfied{}.error();
-      }
-      // clang-format off
-      static inline T*
-   error(_ = "increase BOOST_DI_CFG_CTOR_LIMIT_SIZE value or reduce number of constructor parameters");
-      // clang-format on
-    };
-  };
-  struct is_not_exposed {
-    operator T() const {
-      using constraint_not_satisfied = is_not_exposed;
-      return constraint_not_satisfied{}.error();
-    }
-    // clang-format off
-      static inline T
-   error(_ = "type is not exposed, did you forget to add: 'di::injector<T>'?");
-    // clang-format on
-  };
-  template <class TName>
-  struct named {
-    struct is_not_exposed {
-      operator T() const {
-        using constraint_not_satisfied = is_not_exposed;
-        return constraint_not_satisfied{}.error();
-      }
-      // clang-format off
-      static inline T
-   error(_ = "type is not exposed, did you forget to add: 'di::injector<BOOST_DI_EXPOSE((named = name)T)>'?");
-      // clang-format on
-    };
-  };
-};
-template <class>
-struct ctor_size;
-template <class TInit, class... TCtor>
-struct ctor_size<aux::pair<TInit, aux::type_list<TCtor...>>> : aux::integral_constant<int, sizeof...(TCtor)> {};
-template <class... TCtor>
-struct ctor_size<aux::type_list<TCtor...>> : aux::integral_constant<int, sizeof...(TCtor)> {};
-template <class T>
-using ctor_size_t = ctor_size<typename type_traits::ctor<T, type_traits::ctor_impl_t<aux::is_constructible, T>>::type>;
-template <class TInitialization, class TName, class _, class TCtor, class T = aux::decay_t<_>>
-struct creatable_error_impl
-    : aux::conditional_t<
-          aux::is_polymorphic<T>::value,
-          aux::conditional_t<aux::is_same<TName, no_name>::value, typename abstract_type<T>::is_not_bound,
-                             typename abstract_type<T>::template named<TName>::is_not_bound>,
-          aux::conditional_t<ctor_size_t<T>::value == ctor_size<TCtor>::value,
-                             typename type<T>::has_to_many_constructor_parameters::template max<BOOST_DI_CFG_CTOR_LIMIT_SIZE>,
-                             typename type<T>::has_ambiguous_number_of_constructor_parameters::template given<
-                                 ctor_size<TCtor>::value>::template expected<ctor_size_t<T>::value>>> {};
-template <class TInit, class T, class... TArgs>
-struct creatable {
-  static constexpr auto value = aux::is_constructible<T, TArgs...>::value;
-};
-template <class T, class... TArgs>
-struct creatable<type_traits::uniform, T, TArgs...> {
-  static constexpr auto value = aux::is_braces_constructible<T, TArgs...>::value;
-};
-template <class TInitialization, class TName, class T, class... TArgs>
-T creatable_error() {
-  return creatable_error_impl<TInitialization, TName, T, aux::type_list<TArgs...>>{};
-}
-}
 namespace scopes {
-class instance;
+class external;
 namespace detail {
 template <class T, class TExpected, class TGiven>
 struct arg {
@@ -1353,11 +1212,11 @@ struct arg {
 };
 template <class T>
 struct wrapper_traits {
-  using type = wrappers::unique<instance, T>;
+  using type = wrappers::unique<external, T>;
 };
 template <class T>
 struct wrapper_traits<std::shared_ptr<T>> {
-  using type = wrappers::shared<instance, T>;
+  using type = wrappers::shared<external, T>;
 };
 template <class T>
 using wrapper_traits_t = typename wrapper_traits<T>::type;
@@ -1374,7 +1233,7 @@ struct wrapper {
   inline operator T() noexcept { return static_cast<T&&>(object); }
   T object;
 };
-class instance {
+class external {
  public:
   template <class, class TGiven, class = int>
   struct scope {
@@ -1382,23 +1241,23 @@ class instance {
     using is_referable = aux::false_type;
     explicit scope(const TGiven& object) : object_{object} {}
     template <class, class, class TProvider>
-    static wrappers::unique<instance, TGiven> try_create(const TProvider&);
+    static wrappers::unique<external, TGiven> try_create(const TProvider&);
     template <class, class, class TProvider>
     auto create(const TProvider&) const noexcept {
-      return wrappers::unique<instance, TGiven>{object_};
+      return wrappers::unique<external, TGiven>{object_};
     }
     TGiven object_;
   };
   template <class TExpected, class TGiven>
   struct scope<TExpected, std::shared_ptr<TGiven>> {
     template <class T, class>
-    using is_referable = typename wrappers::shared<instance, TGiven>::template is_referable<aux::remove_qualifiers_t<T>>;
+    using is_referable = typename wrappers::shared<external, TGiven>::template is_referable<aux::remove_qualifiers_t<T>>;
     explicit scope(const std::shared_ptr<TGiven>& object) : object_{object} {}
     template <class, class, class TProvider>
-    static wrappers::shared<instance, TGiven> try_create(const TProvider&);
+    static wrappers::shared<external, TGiven> try_create(const TProvider&);
     template <class, class, class TProvider>
     auto create(const TProvider&) const noexcept {
-      return wrappers::shared<instance, TGiven>{object_};
+      return wrappers::shared<external, TGiven>{object_};
     }
     std::shared_ptr<TGiven> object_;
   };
@@ -1411,7 +1270,7 @@ class instance {
     static std::initializer_list<TGiven> try_create(const TProvider&);
     template <class, class, class TProvider>
     auto create(const TProvider&) const noexcept {
-      return wrappers::unique<instance, std::initializer_list<TGiven>>{object_};
+      return wrappers::unique<external, std::initializer_list<TGiven>>{object_};
     }
     std::initializer_list<TGiven> object_;
   };
@@ -1421,12 +1280,12 @@ class instance {
     using is_referable = aux::true_type;
     explicit scope(TGiven& object) : object_{object} {}
     template <class, class, class TProvider>
-    static wrappers::shared<instance, TGiven&> try_create(const TProvider&);
+    static wrappers::shared<external, TGiven&> try_create(const TProvider&);
     template <class, class, class TProvider>
     auto create(const TProvider&) const noexcept {
       return object_;
     }
-    wrappers::shared<instance, TGiven&> object_;
+    wrappers::shared<external, TGiven&> object_;
   };
   template <class TExpected, class TGiven>
   struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
@@ -1442,7 +1301,7 @@ class instance {
               __BOOST_DI_REQUIRES(!detail::is_expr<TGiven, TProvider, const detail::arg<T, TExpected, TGiven>&>::value &&
                                   !detail::is_expr<TGiven, TProvider>::value && aux::is_callable<TGiven>::value &&
                                   aux::is_callable<TExpected>::value) = 0>
-    static wrappers::unique<instance, TExpected> try_create(const TProvider&) noexcept;
+    static wrappers::unique<external, TExpected> try_create(const TProvider&) noexcept;
     template <class T, class, class TProvider,
               __BOOST_DI_REQUIRES(!detail::is_expr<TGiven, TProvider>::value && aux::is_callable_with<TGiven>::value &&
                                   !aux::is_callable<TExpected>::value) = 0>
@@ -1461,7 +1320,7 @@ class instance {
               __BOOST_DI_REQUIRES(!detail::is_expr<TGiven, TProvider>::value && aux::is_callable<TGiven>::value &&
                                   aux::is_callable<TExpected>::value) = 0>
     auto create(const TProvider&) const noexcept {
-      return wrappers::unique<instance, TExpected>{object_};
+      return wrappers::unique<external, TExpected>{object_};
     }
     template <class T, class, class TProvider,
               __BOOST_DI_REQUIRES(!detail::is_expr<TGiven, TProvider>::value && aux::is_callable_with<TGiven>::value &&
@@ -1482,87 +1341,6 @@ class instance {
       return wrapper{(object_)(*provider.injector_, detail::arg<T, TExpected, TGiven>{})};
     }
     TGiven object_;
-  };
-  template <class _, class... Ts>
-  class scope<_, aux::type_list<Ts...>> {
-    template <class>
-    struct injector__;
-    template <class TName, class T>
-    struct injector__<named<TName, T>> {
-      T (*f)(const injector__*) = nullptr;
-      explicit injector__(const decltype(f)& ptr) : f(ptr) {}
-    };
-    struct injector : injector__<Ts>... {
-      void (*dtor)(injector*) = nullptr;
-      ~injector() noexcept { static_cast<injector*>(this)->dtor(this); }
-      template <class TName, class T>
-      T create(const named<TName, T>&, const aux::true_type&) const noexcept {
-        return static_cast<const injector__<named<TName, T>>*>(this)->f(static_cast<const injector__<named<TName, T>>*>(this));
-      }
-      template <class T>
-      T create(const named<no_name, T>&, const aux::false_type&) const noexcept {
-        return typename concepts::type<T>::is_not_exposed{};
-      }
-      template <class TName, class T>
-      T create(const named<TName, T>&, const aux::false_type&) const noexcept {
-        return typename concepts::type<T>::template named<TName>::is_not_exposed{};
-      }
-    };
-    template <class TInjector>
-    class injector_impl : injector__<Ts>... {
-      void (*dtor)(injector_impl*) = nullptr;
-      static void dtor_impl(injector_impl* object) { object->~injector_impl(); }
-      template <class, class>
-      struct create;
-      template <class TName, class T>
-      struct create<named<TName, T>, aux::true_type> {
-        static T impl(const injector__<named<TName, T>>* object) noexcept {
-          using type = aux::type<aux::conditional_t<aux::is_same<TName, no_name>::value, T, named<TName, T>>>;
-          return static_cast<const core::injector__<TInjector>&>(static_cast<const injector_impl*>(object)->injector_)
-              .create_successful_impl(type{});
-        }
-      };
-      template <class TName, class T>
-      struct create<named<TName, T>, aux::false_type> {
-        static T impl(const injector__<named<TName, T>>* object) noexcept {
-          using type = aux::type<aux::conditional_t<aux::is_same<TName, no_name>::value, T, named<TName, T>>>;
-          return static_cast<const core::injector__<TInjector>&>(static_cast<const injector_impl*>(object)->injector_)
-              .create_impl(type{});
-        }
-      };
-      template <class T>
-      struct is_creatable : aux::integral_constant<bool, core::injector__<TInjector>::template is_creatable<T>::value> {};
-      template <class TName, class T>
-      struct is_creatable<named<TName, T>>
-          : aux::integral_constant<bool, core::injector__<TInjector>::template is_creatable<T, TName>::value> {};
-
-     public:
-      explicit injector_impl(TInjector&& injector) noexcept
-          : injector__<Ts>(&injector_impl::template create<Ts, typename is_creatable<Ts>::type>::impl)...,
-            dtor(&injector_impl::dtor_impl),
-            injector_(static_cast<TInjector&&>(injector)) {}
-
-     private:
-      TInjector injector_;
-    };
-
-   public:
-    template <class, class>
-    using is_referable = aux::true_type;
-    template <class TInjector, __BOOST_DI_REQUIRES(aux::is_a<core::injector_base, TInjector>::value) = 0>
-    explicit scope(TInjector&& i) noexcept : injector_((injector*)new injector_impl<TInjector>{static_cast<TInjector&&>(i)}) {}
-    scope(scope&& other) noexcept : injector_(other.injector_) { other.injector_ = nullptr; }
-    ~scope() noexcept { delete injector_; }
-    template <class T, class TName, class TProvider>
-    static aux::conditional_t<aux::is_base_of<injector__<named<TName, T>>, injector>::value, T, void> try_create(
-        const TProvider&);
-    template <class T, class TName, class TProvider>
-    auto create(const TProvider&) {
-      return wrapper<T>{injector_->create(named<TName, T>{}, aux::is_base_of<injector__<named<TName, T>>, injector>{})};
-    }
-
-   private:
-    injector* injector_;
   };
 };
 }
@@ -1715,7 +1493,7 @@ class dependency
             __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
-    using dependency = dependency<scopes::instance, array<type>, std::initializer_list<T>, TName, TPriority>;
+    using dependency = dependency<scopes::external, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
   template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,
@@ -1730,7 +1508,7 @@ class dependency
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
     using dependency =
-        dependency<scopes::instance, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+        dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{static_cast<T&&>(object)};
   }
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value && !aux::is_same<TScope, scopes::deduce>::value) = 0,
@@ -1812,6 +1590,147 @@ struct is_callable<void> {
 };
 template <class... Ts>
 using callable = typename is_callable<Ts...>::type;
+}
+namespace concepts {
+template <class T>
+struct abstract_type {
+  struct is_not_bound {
+    operator T*() const {
+      using constraint_not_satisfied = is_not_bound;
+      return constraint_not_satisfied{}.error();
+    }
+    // clang-format off
+    static inline T*
+ error(_ = "type is not bound, did you forget to add: 'di::bind<interface>.to<implementation>()'?");
+    // clang-format on
+  };
+  template <class TName>
+  struct named {
+    struct is_not_bound {
+      operator T*() const {
+        using constraint_not_satisfied = is_not_bound;
+        return constraint_not_satisfied{}.error();
+      }
+      // clang-format off
+      static inline T*
+   error(_ = "type is not bound, did you forget to add: 'di::bind<interface>.named(name).to<implementation>()'?");
+      // clang-format on
+    };
+  };
+};
+template <class TScope, class T>
+struct scoped {
+  template <class To>
+  struct is_not_convertible_to {
+    operator To() const {
+      using constraint_not_satisfied = is_not_convertible_to;
+      return constraint_not_satisfied{}.error();
+    }
+    // clang-format off
+    static inline To
+ error(_ = "scoped object is not convertible to the requested type, did you mistake the scope: 'di::bind<T>.in(scope)'?");
+    // clang-format on
+  };
+};
+template <class T>
+struct scoped<scopes::external, T> {
+  template <class To>
+  struct is_not_convertible_to {
+    operator To() const {
+      using constraint_not_satisfied = is_not_convertible_to;
+      return constraint_not_satisfied{}.error();
+    }
+    // clang-format off
+    static inline To
+ error(_ = "external is not convertible to the requested type, verify binding: 'di::bind<T>.to(value)'?");
+    // clang-format on
+  };
+};
+template <class T>
+struct type {
+  struct has_ambiguous_number_of_constructor_parameters {
+    template <int Given>
+    struct given {
+      template <int Expected>
+      struct expected {
+        operator T*() const {
+          using constraint_not_satisfied = expected;
+          return constraint_not_satisfied{}.error();
+        }
+        // clang-format off
+        static inline T*
+  error(_ = "verify BOOST_DI_INJECT_TRAITS or di::ctor_traits");
+        // clang-format on
+      };
+    };
+  };
+  struct has_to_many_constructor_parameters {
+    template <int TMax>
+    struct max {
+      operator T*() const {
+        using constraint_not_satisfied = max;
+        return constraint_not_satisfied{}.error();
+      }
+      // clang-format off
+      static inline T*
+   error(_ = "increase BOOST_DI_CFG_CTOR_LIMIT_SIZE value or reduce number of constructor parameters");
+      // clang-format on
+    };
+  };
+  struct is_not_exposed {
+    operator T() const {
+      using constraint_not_satisfied = is_not_exposed;
+      return constraint_not_satisfied{}.error();
+    }
+    // clang-format off
+      static inline T
+   error(_ = "type is not exposed, did you forget to add: 'di::injector<T>'?");
+    // clang-format on
+  };
+  template <class TName>
+  struct named {
+    struct is_not_exposed {
+      operator T() const {
+        using constraint_not_satisfied = is_not_exposed;
+        return constraint_not_satisfied{}.error();
+      }
+      // clang-format off
+      static inline T
+   error(_ = "type is not exposed, did you forget to add: 'di::injector<BOOST_DI_EXPOSE((named = name)T)>'?");
+      // clang-format on
+    };
+  };
+};
+template <class>
+struct ctor_size;
+template <class TInit, class... TCtor>
+struct ctor_size<aux::pair<TInit, aux::type_list<TCtor...>>> : aux::integral_constant<int, sizeof...(TCtor)> {};
+template <class... TCtor>
+struct ctor_size<aux::type_list<TCtor...>> : aux::integral_constant<int, sizeof...(TCtor)> {};
+template <class T>
+using ctor_size_t = ctor_size<typename type_traits::ctor<T, type_traits::ctor_impl_t<aux::is_constructible, T>>::type>;
+template <class TInitialization, class TName, class _, class TCtor, class T = aux::decay_t<_>>
+struct creatable_error_impl
+    : aux::conditional_t<
+          aux::is_polymorphic<T>::value,
+          aux::conditional_t<aux::is_same<TName, no_name>::value, typename abstract_type<T>::is_not_bound,
+                             typename abstract_type<T>::template named<TName>::is_not_bound>,
+          aux::conditional_t<ctor_size_t<T>::value == ctor_size<TCtor>::value,
+                             typename type<T>::has_to_many_constructor_parameters::template max<BOOST_DI_CFG_CTOR_LIMIT_SIZE>,
+                             typename type<T>::has_ambiguous_number_of_constructor_parameters::template given<
+                                 ctor_size<TCtor>::value>::template expected<ctor_size_t<T>::value>>> {};
+template <class TInit, class T, class... TArgs>
+struct creatable {
+  static constexpr auto value = aux::is_constructible<T, TArgs...>::value;
+};
+template <class T, class... TArgs>
+struct creatable<type_traits::uniform, T, TArgs...> {
+  static constexpr auto value = aux::is_braces_constructible<T, TArgs...>::value;
+};
+template <class TInitialization, class TName, class T, class... TArgs>
+T creatable_error() {
+  return creatable_error_impl<TInitialization, TName, T, aux::type_list<TArgs...>>{};
+}
 }
 namespace providers {
 class stack_over_heap {
@@ -2727,6 +2646,95 @@ class injector<TConfig, pool<>, TDeps...> : injector_base, pool<bindings_t<TDeps
   }
 };
 }
+namespace scopes {
+namespace detail {
+struct expose {
+  template <class, class>
+  class scope;
+  template <class _, class... Ts>
+  class scope<_, aux::type_list<Ts...>> {
+    template <class>
+    struct injector__;
+    template <class TName, class T>
+    struct injector__<named<TName, T>> {
+      T (*f)(const injector__*) = nullptr;
+      explicit injector__(const decltype(f)& ptr) : f(ptr) {}
+    };
+    struct injector : injector__<Ts>... {
+      void (*dtor)(injector*) = nullptr;
+      ~injector() noexcept { static_cast<injector*>(this)->dtor(this); }
+      template <class TName, class T>
+      T create(const named<TName, T>&, const aux::true_type&) const noexcept {
+        return static_cast<const injector__<named<TName, T>>*>(this)->f(static_cast<const injector__<named<TName, T>>*>(this));
+      }
+      template <class T>
+      T create(const named<no_name, T>&, const aux::false_type&) const noexcept {
+        return typename concepts::type<T>::is_not_exposed{};
+      }
+      template <class TName, class T>
+      T create(const named<TName, T>&, const aux::false_type&) const noexcept {
+        return typename concepts::type<T>::template named<TName>::is_not_exposed{};
+      }
+    };
+    template <class TInjector>
+    class injector_impl : injector__<Ts>... {
+      void (*dtor)(injector_impl*) = nullptr;
+      static void dtor_impl(injector_impl* object) { object->~injector_impl(); }
+      template <class, class>
+      struct create;
+      template <class TName, class T>
+      struct create<named<TName, T>, aux::true_type> {
+        static T impl(const injector__<named<TName, T>>* object) noexcept {
+          using type = aux::type<aux::conditional_t<aux::is_same<TName, no_name>::value, T, named<TName, T>>>;
+          return static_cast<const core::injector__<TInjector>&>(static_cast<const injector_impl*>(object)->injector_)
+              .create_successful_impl(type{});
+        }
+      };
+      template <class TName, class T>
+      struct create<named<TName, T>, aux::false_type> {
+        static T impl(const injector__<named<TName, T>>* object) noexcept {
+          using type = aux::type<aux::conditional_t<aux::is_same<TName, no_name>::value, T, named<TName, T>>>;
+          return static_cast<const core::injector__<TInjector>&>(static_cast<const injector_impl*>(object)->injector_)
+              .create_impl(type{});
+        }
+      };
+      template <class T>
+      struct is_creatable : aux::integral_constant<bool, core::injector__<TInjector>::template is_creatable<T>::value> {};
+      template <class TName, class T>
+      struct is_creatable<named<TName, T>>
+          : aux::integral_constant<bool, core::injector__<TInjector>::template is_creatable<T, TName>::value> {};
+
+     public:
+      explicit injector_impl(TInjector&& injector) noexcept
+          : injector__<Ts>(&injector_impl::template create<Ts, typename is_creatable<Ts>::type>::impl)...,
+            dtor(&injector_impl::dtor_impl),
+            injector_(static_cast<TInjector&&>(injector)) {}
+
+     private:
+      TInjector injector_;
+    };
+
+   public:
+    template <class, class>
+    using is_referable = aux::true_type;
+    template <class TInjector, __BOOST_DI_REQUIRES(aux::is_a<core::injector_base, TInjector>::value) = 0>
+    explicit scope(TInjector&& i) noexcept : injector_((injector*)new injector_impl<TInjector>{static_cast<TInjector&&>(i)}) {}
+    scope(scope&& other) noexcept : injector_(other.injector_) { other.injector_ = nullptr; }
+    ~scope() noexcept { delete injector_; }
+    template <class T, class TName, class TProvider>
+    static aux::conditional_t<aux::is_base_of<injector__<named<TName, T>>, injector>::value, T, void> try_create(
+        const TProvider&);
+    template <class T, class TName, class TProvider>
+    auto create(const TProvider&) {
+      return wrapper<T>{injector_->create(named<TName, T>{}, aux::is_base_of<injector__<named<TName, T>>, injector>{})};
+    }
+
+   private:
+    injector* injector_;
+  };
+};
+}
+}
 namespace detail {
 template <class>
 void create(const aux::true_type&) {}
@@ -2745,11 +2753,11 @@ struct is_creatable_impl<TInjector, named<TName, T>> {
   static constexpr auto value = core::injector__<TInjector>::template is_creatable<T, TName>::value;
 };
 template <class TConfig, class T, class... TGivens>
-struct injector<TConfig, int, core::dependency<scopes::instance, T, aux::type_list<TGivens...>>>
-    : core::injector<TConfig, core::pool<>, core::dependency<scopes::instance, T, aux::type_list<TGivens...>>> {
+struct injector<TConfig, int, core::dependency<scopes::detail::expose, T, aux::type_list<TGivens...>>>
+    : core::injector<TConfig, core::pool<>, core::dependency<scopes::detail::expose, T, aux::type_list<TGivens...>>> {
   template <class... Ts>
   injector(core::injector<Ts...>&& injector) noexcept
-      : core::injector<TConfig, core::pool<>, core::dependency<scopes::instance, T, aux::type_list<TGivens...>>>(
+      : core::injector<TConfig, core::pool<>, core::dependency<scopes::detail::expose, T, aux::type_list<TGivens...>>>(
             static_cast<core::injector<Ts...>&&>(injector)) {
     using injector_t = core::injector<Ts...>;
     int _[]{0,
@@ -2766,7 +2774,7 @@ create<T> (
 template <class T, class... Ts>
 using injector = detail::injector<
     BOOST_DI_CFG, __BOOST_DI_REQUIRES_MSG(concepts::boundable<aux::type<T, Ts...>>),
-    core::dependency<scopes::instance, aux::unique_t<type_traits::named_decay_t<T>, type_traits::named_decay_t<Ts>...>,
+    core::dependency<scopes::detail::expose, aux::unique_t<type_traits::named_decay_t<T>, type_traits::named_decay_t<Ts>...>,
                      aux::type_list<type_traits::add_named_t<T>, type_traits::add_named_t<Ts>...>>>;
 // clang-format off
 #define __BOOST_DI_EXPOSE_IMPL__(...) decltype(::boost::di::v1_0_1::detail::__VA_ARGS__),

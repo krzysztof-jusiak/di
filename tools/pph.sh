@@ -61,7 +61,7 @@ pph() {
     #include "boost/di/injector.hpp"
     #include "boost/di/make_injector.hpp"
     #include "boost/di/scopes/deduce.hpp"
-    #include "boost/di/scopes/instance.hpp"
+    #include "boost/di/scopes/external.hpp"
     #include "boost/di/scopes/singleton.hpp"
     #include "boost/di/scopes/unique.hpp"
     #include "boost/di/policies/constructible.hpp"
@@ -70,7 +70,7 @@ pph() {
   cpp -C -P -nostdinc -I. \
     -DBOOST_DI_AUX_COMPILER_HPP \
     -DBOOST_DI_AUX_PREPROCESSOR_HPP \
-    -DBOOST_DI_INJECT_HPP tmp.hpp 2>/dev/null | \
+    -DBOOST_DI_INJECT_HPP tmp.hpp | \
     sed "s/\/\/\/\///" | \
     sed "s/[ $]*#define/##define/g" | \
     cpp -P -I. -fpreprocessed - 2>/dev/null | \

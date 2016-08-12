@@ -13,6 +13,7 @@
 #include "boost/di/core/injector.hpp"
 #include "boost/di/fwd.hpp"
 #include "boost/di/type_traits/named_traits.hpp"
+#include "boost/di/scopes/detail/expose.hpp"
 
 namespace detail {
 
@@ -38,11 +39,11 @@ struct is_creatable_impl<TInjector, named<TName, T>> {
 };
 
 template <class TConfig, class T, class... TGivens>
-struct injector<TConfig, int, core::dependency<scopes::instance, T, aux::type_list<TGivens...>>>
-    : core::injector<TConfig, core::pool<>, core::dependency<scopes::instance, T, aux::type_list<TGivens...>>> {
+struct injector<TConfig, int, core::dependency<scopes::detail::expose, T, aux::type_list<TGivens...>>>
+    : core::injector<TConfig, core::pool<>, core::dependency<scopes::detail::expose, T, aux::type_list<TGivens...>>> {
   template <class... Ts>
   injector(core::injector<Ts...>&& injector) noexcept  // non explicit
-      : core::injector<TConfig, core::pool<>, core::dependency<scopes::instance, T, aux::type_list<TGivens...>>>(
+      : core::injector<TConfig, core::pool<>, core::dependency<scopes::detail::expose, T, aux::type_list<TGivens...>>>(
             static_cast<core::injector<Ts...>&&>(injector)) {
     using injector_t = core::injector<Ts...>;
     int _[]{0,
@@ -61,7 +62,7 @@ create<T> (
 template <class T, class... Ts>
 using injector = detail::injector<
     BOOST_DI_CFG, __BOOST_DI_REQUIRES_MSG(concepts::boundable<aux::type<T, Ts...>>),
-    core::dependency<scopes::instance, aux::unique_t<type_traits::named_decay_t<T>, type_traits::named_decay_t<Ts>...>,
+    core::dependency<scopes::detail::expose, aux::unique_t<type_traits::named_decay_t<T>, type_traits::named_decay_t<Ts>...>,
                      aux::type_list<type_traits::add_named_t<T>, type_traits::add_named_t<Ts>...>>>;
 
 // clang-format off

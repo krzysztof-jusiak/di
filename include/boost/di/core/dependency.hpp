@@ -14,7 +14,7 @@
 #include "boost/di/core/array.hpp"
 #include "boost/di/fwd.hpp"
 #include "boost/di/scopes/deduce.hpp"
-#include "boost/di/scopes/instance.hpp"
+#include "boost/di/scopes/external.hpp"
 
 namespace core {
 
@@ -202,7 +202,7 @@ class dependency
             __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
-    using dependency = dependency<scopes::instance, array<type>, std::initializer_list<T>, TName, TPriority>;
+    using dependency = dependency<scopes::external, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
 
@@ -219,7 +219,7 @@ class dependency
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
     using dependency =
-        dependency<scopes::instance, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+        dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{static_cast<T&&>(object)};
   }
 

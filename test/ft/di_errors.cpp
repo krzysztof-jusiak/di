@@ -105,24 +105,24 @@ auto compail_fail(int id, const std::string& defines, const std::vector<std::str
 
 // ---------------------------------------------------------------------------
 
-test bind_instance_with_given_scope = [] {
+test bind_external_with_given_scope = [] {
   expect_compile_fail("", errors(), di::make_injector(di::bind<int>().in(di::unique).to(42)););
 };
 
 #if defined(__cpp_variable_templates)
-test bind_instance_with_given_scope_v = [] {
+test bind_external_with_given_scope_v = [] {
   expect_compile_fail("", errors(), di::make_injector(di::bind<int>.in(di::unique).to(42)););
 };
 #endif
 
-test bind_instance_with_given_type = [] {
+test bind_external_with_given_type = [] {
   expect_compile_fail("", errors(), struct i{}; struct impl
                       : i{};
                       int main() { di::make_injector(di::bind<i>().to(impl{}).to<impl>()); });
 };
 
 #if defined(__cpp_variable_templates)
-test bind_instance_with_given_type_v = [] {
+test bind_external_with_given_type_v = [] {
   expect_compile_fail("", errors(), struct i{}; struct impl
                       : i{};
                       int main() { di::make_injector(di::bind<i>.to(impl{}).to<impl>()); });
@@ -141,12 +141,12 @@ test bind_named_to_named_v = [] {
 };
 #endif
 
-test bind_instance_with_given_value = [] {
+test bind_external_with_given_value = [] {
   expect_compile_fail("", errors(), int main() { di::make_injector(di::bind<int>().to<std::integral_constant<int>>(0)); });
 };
 
 #if defined(__cpp_variable_templates)
-test bind_instance_with_given_value_v = [] {
+test bind_external_with_given_value_v = [] {
   expect_compile_fail("", errors(), int main() { di::make_injector(di::bind<int>.to<std::integral_constant<int>>(0)); });
 };
 #endif
@@ -281,7 +281,7 @@ test bind_not_compatible_types_v = [] {
 };
 #endif
 
-test bind_not_compatible_instance = [] {
+test bind_not_compatible_external = [] {
   auto errors_ = errors("constraint not satisfied",
 #if defined(__MSVC__)
                         "type_<.*>::is_not_related_to<int>", "=.*impl"
@@ -296,7 +296,7 @@ test bind_not_compatible_instance = [] {
 };
 
 #if defined(__cpp_variable_templates)
-test bind_not_compatible_instance_v = [] {
+test bind_not_compatible_external_v = [] {
   auto errors_ = errors("constraint not satisfied",
 #if defined(__MSVC__)
                         "type_<.*>::is_not_related_to<int>", "=.*impl"
@@ -541,7 +541,7 @@ test bind_is_abstract_type_named_v = [] {
 };
 #endif
 
-test bind_deduced_instance_repeated = [] {
+test bind_deduced_external_repeated = [] {
   auto errors_ = errors("constraint not satisfied",
 #if defined(__MSVC__)
                         "type_<.*>::is_bound_more_than_once", "=.*int"
@@ -553,7 +553,7 @@ test bind_deduced_instance_repeated = [] {
 };
 
 #if defined(__cpp_variable_templates)
-test bind_deduced_instance_repeated_v = [] {
+test bind_deduced_external_repeated_v = [] {
   auto errors_ = errors("constraint not satisfied",
 #if defined(__MSVC__)
                         "type_<.*>::is_bound_more_than_once", "=.*int"
@@ -565,13 +565,13 @@ test bind_deduced_instance_repeated_v = [] {
 };
 #endif
 
-test bind_deduced_instance_repeated_mix = [] {
+test bind_deduced_external_repeated_mix = [] {
   auto errors_ = errors("constraint not satisfied", "type_<.*int>::is_bound_more_than_once");
   expect_compile_fail("", errors_, int main() { di::make_injector(di::bind<int>().to(42), di::bind<>().to(42)); });
 };
 
 #if defined(__cpp_variable_templates)
-test bind_deduced_instance_repeated_mix_v = [] {
+test bind_deduced_external_repeated_mix_v = [] {
   auto errors_ = errors("constraint not satisfied", "type_<.*int>::is_bound_more_than_once");
   expect_compile_fail("", errors_, int main() { di::make_injector(di::bind<int>().to(42), di::bind<>.to(42)); });
 };
@@ -628,20 +628,20 @@ test bind_to_different_types_v = [] {
 };
 #endif
 
-test bind_instance_repeated = [] {
+test bind_external_repeated = [] {
   auto errors_ = errors("constraint not satisfied", "type_<.*int>::is_bound_more_than_once");
   expect_compile_fail("", errors_, int main() { di::make_injector(di::bind<int>().to(42), di::bind<int>().to(87)); });
 };
 
 #if defined(__cpp_variable_templates)
-test bind_instance_repeated_v = [] {
+test bind_external_repeated_v = [] {
   auto errors_ = errors("constraint not satisfied", "type_<.*int>::is_bound_more_than_once");
   expect_compile_fail("", errors_, int main() { di::make_injector(di::bind<int>.to(42), di::bind<int>.to(87)); });
 };
 #endif
 
 #if defined(__cpp_variable_templates)
-test bind_instance_repeated_mix_v = [] {
+test bind_external_repeated_mix_v = [] {
   auto errors_ = errors("constraint not satisfied", "type_<.*int>::is_bound_more_than_once");
   expect_compile_fail("", errors_, int main() { di::make_injector(di::bind<int>().to(42), di::bind<int>.to(87)); });
 };
@@ -1064,15 +1064,15 @@ int main() { di::make_injector<test_config>(); }
           });
     };
 
-    test bind_instance_not_convertible = [] {
+    test bind_external_not_convertible = [] {
       auto errors_ = errors(
 #if (__clang_major__ == 3) && (__clang_minor__ > 4) || defined(__GCC___) || defined(__MSVC__)
           "creatable constraint not satisfied",
 #endif
-          "scoped<.*>::is_not_convertible_to<.*>", "instance", "int", "int.*\\*"
+          "scoped<.*>::is_not_convertible_to<.*>", "external", "int", "int.*\\*"
 #if !defined(__MSVC__)
           ,
-          "instance is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
+          "external is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
 #endif
           );
 
@@ -1083,15 +1083,15 @@ int main() { di::make_injector<test_config>(); }
           });
     };
 
-    test bind_instance_not_referable = [] {
+    test bind_external_not_referable = [] {
       auto errors_ = errors(
 #if (__clang_major__ == 3) && (__clang_minor__ > 4) || defined(__GCC___) || defined(__MSVC__)
           "creatable constraint not satisfied",
 #endif
-          "scoped<.*>::is_not_convertible_to<.*>", "instance", "int", "int.*&"
+          "scoped<.*>::is_not_convertible_to<.*>", "external", "int", "int.*&"
 #if !defined(__MSVC__)
           ,
-          "instance is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
+          "external is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
 #endif
           );
 
@@ -1103,15 +1103,15 @@ int main() { di::make_injector<test_config>(); }
           });
     };
 
-    test bind_instance_not_referable_named = [] {
+    test bind_external_not_referable_named = [] {
       auto errors_ = errors(
 #if (__clang_major__ == 3) && (__clang_minor__ > 4) || defined(__GCC___) || defined(__MSVC__)
           "creatable constraint not satisfied",
 #endif
-          "scoped<.*>::is_not_convertible_to<.*>", "instance", "int", "int.*&"
+          "scoped<.*>::is_not_convertible_to<.*>", "external", "int", "int.*&"
 #if !defined(__MSVC__)
           ,
-          "instance is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
+          "external is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
 #endif
           );
 

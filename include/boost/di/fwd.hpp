@@ -67,7 +67,7 @@ class dependency;
 
 namespace scopes {
 class deduce;
-class instance;
+class external;
 class singleton;
 class unique;
 }  // scopes

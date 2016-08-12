@@ -63,7 +63,7 @@ struct scoped {
 };
 
 template <class T>
-struct scoped<scopes::instance, T> {
+struct scoped<scopes::external, T> {
   template <class To>
   struct is_not_convertible_to {
     operator To() const {
@@ -73,7 +73,7 @@ struct scoped<scopes::instance, T> {
 
     // clang-format off
     static inline To
-	error(_ = "instance is not convertible to the requested type, verify binding: 'di::bind<T>.to(value)'?");
+	error(_ = "external is not convertible to the requested type, verify binding: 'di::bind<T>.to(value)'?");
     // clang-format on
   };
 };
