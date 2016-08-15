@@ -575,6 +575,10 @@ template <class T>
 auto has_shared_ptr_impl(T &&) -> aux::is_valid_expr<decltype(std::shared_ptr<T>{})>;
 template <class T>
 using has_shared_ptr = decltype(has_shared_ptr_impl(declval<T>()));
+template <class>
+struct is_reference : false_type {};
+template <class T>
+struct is_reference<std::reference_wrapper<T>> : true_type {};
 template <class R, class... TArgs>
 struct function_traits<R (*)(TArgs...)> {
   using result_type = R;
@@ -1043,6 +1047,7 @@ struct shared<TScope, T&> {
   template <class>
   struct is_referable : aux::true_type {};
   explicit shared(T& object) : object(&object) {}
+  explicit shared(std::reference_wrapper<T> object) : object(&object.get()) {}
   template <class I>
   explicit shared(I);
   template <class I, __BOOST_DI_REQUIRES(aux::is_convertible<T, I>::value) = 0>
@@ -1222,24 +1227,6 @@ class deduce {
   };
 };
 }
-namespace scopes {
-class external {
- public:
-  template <class TExpected, class TGiven>
-  struct scope {
-    template <class, class>
-    using is_referable = aux::true_type;
-    explicit scope(TGiven& object) : object_{object} {}
-    template <class, class, class TProvider>
-    static wrappers::shared<external, TGiven&> try_create(const TProvider&);
-    template <class, class, class TProvider>
-    auto create(const TProvider&) const noexcept {
-      return object_;
-    }
-    wrappers::shared<external, TGiven&> object_;
-  };
-};
-}
 namespace concepts {
 template <class T>
 struct abstract_type {
@@ -1415,14 +1402,44 @@ struct arg {
 };
 template <class T>
 struct wrapper_traits {
-  using type = wrappers::unique<class q, T>;
+  using type = wrappers::unique<class unique, T>;
+  using is_referable = aux::false_type;
+};
+template <class T>
+struct wrapper_traits<std::reference_wrapper<T>> {
+  using type = wrappers::shared<class sharedj, T&>;
+  using is_referable = aux::true_type;
 };
 template <class T>
 struct wrapper_traits<std::shared_ptr<T>> {
-  using type = wrappers::shared<class q, T>;
+  using type = wrappers::shared<class shared, T>;
+  using is_referable = aux::true_type;
+};
+template <class T>
+struct wrapper_traits<std::shared_ptr<T>&> {
+  using type = wrappers::shared<class shared, T>;
+  using is_referable = aux::true_type;
+};
+template <class T>
+struct wrapper_traits<T&> {
+  using type = wrappers::shared<class shared_ref, T>;
+  using is_referable = aux::true_type;
 };
 template <class T>
 using wrapper_traits_t = typename wrapper_traits<T>::type;
+struct EXTERNAL {
+  template <class, class>
+  struct scope {
+    template <class T, class TInjector>
+    using is_referable = aux::true_type;
+    template <class, class, class TProvider>
+    static auto try_create(const TProvider& p) -> wrapper_traits_t<decltype(p.get())>;
+    template <class, class, class TProvider>
+    auto create(const TProvider& p) {
+      return wrapper_traits_t<decltype(p.get())>{p.get()};
+    }
+  };
+};
 template <class, class = int>
 struct has_result_type : ::boost::di::v1_0_1::aux::false_type {};
 template <class T>
@@ -1435,22 +1452,9 @@ template <class U, class TScope>
 struct underlying {
   template <class TExpected, class TGiven, class = int>
   class scope {
-    template <class T>
-    using is_smart = aux::integral_constant<bool, !aux::is_same<aux::remove_smart_ptr_t<T>, T>::value>;
-    template <class TInjector>
-    using is_shared = is_smart<U>;
-    template <class Scope, class>
-    struct get_scope {
-      using type = typename Scope::template scope<TExpected, TGiven>;
-    };
-    template <class T>
-    struct get_scope<scopes::singleton, T> {
-      using type = typename scopes::singleton::template scope<TExpected, TGiven, T>;
-    };
-
    public:
     template <class T, class TInjector>
-    using is_referable = typename get_scope<TScope, is_shared<TInjector>>::type::template is_referable<T, TInjector>;
+    using is_referable = typename TScope::template scope<TExpected, TGiven>::template is_referable<T, TInjector>;
     explicit scope(const U& object) : object_(object) {}
     template <class TInjector>
     struct provider {
@@ -1463,18 +1467,18 @@ struct underlying {
       const U& object_;
     };
     template <class T, class TName, class TProvider>
-    static decltype(typename get_scope<TScope, is_shared<typename TProvider::injector_t>>::type{}.template try_create<T, TName>(
+    static decltype(typename TScope::template scope<TExpected, TGiven>{}.template try_create<T, TName>(
         aux::declval<provider<typename TProvider::injector_t>>()))
     try_create(const TProvider&);
     template <class T, class TName, class TProvider>
     auto create(const TProvider& pr) {
-      using scope = typename get_scope<TScope, is_shared<typename TProvider::injector_t>>::type;
+      using scope = typename TScope::template scope<TExpected, TGiven>;
       return scope{}.template create<T, TName>(provider<typename TProvider::injector_t>{*pr.injector_, object_});
     }
     U object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
+  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value && !aux::is_reference<TGiven>::value)> {
     template <class, class>
     using is_referable =
         aux::integral_constant<bool, !aux::is_callable<TExpected>::value || !has_result_type<TExpected>::value>;
@@ -1521,20 +1525,18 @@ struct underlying {
       using type = typename Scope::template scope<TExpected, TGiven>;
     };
     template <class T>
-    struct get_scope<scopes::singleton, T> {
-      using type = typename scopes::singleton::template scope<TExpected, TGiven, T>;
+    struct get_scope<scopes::singleton_non_shared, T> {
+      using type = aux::conditional_t<T::value, typename scopes::singleton_shared::template scope<TExpected, TGiven>,
+                                      typename scopes::singleton_non_shared::template scope<TExpected, TGiven>>;
+    };
+    template <class T>
+    struct get_scope<scopes::singleton_shared, T> {
+      using type = aux::conditional_t<T::value, typename scopes::singleton_shared::template scope<TExpected, TGiven>,
+                                      typename scopes::singleton_non_shared::template scope<TExpected, TGiven>>;
     };
     template <class T>
     struct get_scope<scopes::deduce, T> {
-      struct scope {
-        template <class, class, class TProvider>
-        static auto try_create(const TProvider& p) -> wrapper_traits_t<decltype(p.get())>;
-        template <class, class, class TProvider>
-        auto create(const TProvider& p) {
-          return wrapper_traits_t<decltype(p.get())>{p.get()};
-        }
-      };
-      using type = scope;
+      using type = typename EXTERNAL::template scope<TExpected, TGiven>;
     };
     explicit scope(const TGiven& object) : object_(object) {}
     template <class T, class TName, class TProvider>
@@ -1551,6 +1553,62 @@ struct underlying {
 };
 }
 }
+namespace type_traits {
+template <class T>
+struct scope_traits_ext {
+  using type = scopes::unique;
+};
+template <class T>
+struct scope_traits_ext<std::reference_wrapper<T>> {
+  using type = scopes::detail::EXTERNAL;
+};
+template <class T>
+struct scope_traits_ext<boost::reference_wrapper<T>> {
+  using type = scopes::detail::EXTERNAL;
+};
+template <class T>
+struct scope_traits_ext<std::initializer_list<T>> {
+  using type = scopes::detail::EXTERNAL;
+};
+template <class T>
+struct scope_traits_ext<std::shared_ptr<T>> {
+  using type = scopes::detail::EXTERNAL;
+};
+template <class T>
+struct scope_traits_ext<std::shared_ptr<T>&> {
+  using type = scopes::detail::EXTERNAL;
+};
+template <class T>
+struct scope_traits_ext<T&> {
+  using type = scopes::detail::EXTERNAL;
+};
+template <class T>
+using scope_traits_ext_t = typename scope_traits_ext<T>::type;
+}
+namespace scopes {
+class deduce_ext {
+ public:
+  template <class TExpected, class TGiven>
+  class scope {
+   public:
+    template <class T, class TInjector>
+    using is_referable =
+        typename type_traits::scope_traits_ext_t<TGiven>::template scope<TExpected, TGiven>::template is_referable<TGiven,
+                                                                                                                   TInjector>;
+    template <class T, class TName, class TProvider>
+    static decltype(typename type_traits::scope_traits_ext_t<TGiven>::template scope<TExpected, TGiven>{}
+                        .template try_create<TGiven, TName>(aux::declval<TProvider>()))
+    try_create(const TProvider&);
+    template <class T, class TName, class TProvider>
+    auto create(const TProvider& provider) {
+      using scope_traits = type_traits::scope_traits_ext_t<TGiven>;
+      using scope = typename scope_traits::template scope<TExpected, TGiven>;
+      return scope{}.template create<T, TName>(provider);
+    }
+  };
+};
+}
+namespace scopes {}
 namespace core {
 template <class, class>
 struct dependency_concept {};
@@ -1660,21 +1718,35 @@ class dependency
             __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
-    using dependency = dependency<scopes::external, array<type>, std::initializer_list<T>, TName, TPriority>;
+    using dependency = dependency<scopes::detail::underlying<std::initializer_list<T>, scopes::deduce_ext>, array<type>,
+                                  std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0,
-            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
-  auto to(std::reference_wrapper<T>&& object) noexcept {
-    using dependency =
-        dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
-    return dependency{object};
-  }
+  template <class Scope, class T>
+  struct get_scope {
+    using type = Scope;
+  };
+  template <class T>
+  struct get_scope<scopes::deduce, T> {
+    using type = scopes::deduce_ext;
+  };
+  template <class T>
+  struct get_scope<scopes::singleton, T> {
+    using type = scopes::singleton_non_shared;
+  };
+  template <class T>
+  struct get_scope<scopes::singleton, std::shared_ptr<T>> {
+    using type = scopes::singleton_shared;
+  };
+  template <class T>
+  struct get_scope<scopes::singleton, std::shared_ptr<T>&> {
+    using type = scopes::singleton_shared;
+  };
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(
                 concepts::boundable<deduce_traits_t<TExpected, T>, typename re<aux::decay_t<T>>::type, aux::valid<>>) = 0>
   auto to(const T& object) noexcept {
-    using dependency = dependency<scopes::detail::underlying<typename ref_traits<T>::type, TScope>,
+    using dependency = dependency<scopes::detail::underlying<typename ref_traits<T>::type, typename get_scope<TScope, T>::type>,
                                   deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{object};
   }
@@ -2802,60 +2874,6 @@ inline auto make_injector(TDeps... args) noexcept {
   return __BOOST_DI_MAKE_INJECTOR(
       core::injector<TConfig, decltype(((TConfig*)0)->policies((core::injector<TConfig, core::pool<>, TDeps...>*)0)), TDeps...>{
           core::init{}, static_cast<TDeps&&>(args)...});
-}
-namespace type_traits {
-template <class T>
-struct scope_traits_ext {
-  using type = scopes::unique;
-};
-template <class T>
-struct scope_traits_ext<std::reference_wrapper<T>> {
-  using type = scopes::external;
-};
-template <class T>
-struct scope_traits_ext<boost::reference_wrapper<T>> {
-  using type = scopes::external;
-};
-template <class T>
-struct scope_traits_ext<std::initializer_list<T>> {
-  using type = scopes::external;
-};
-template <class T>
-struct scope_traits_ext<std::shared_ptr<T>> {
-  using type = scopes::singleton_shared;
-};
-template <class T>
-struct scope_traits_ext<std::shared_ptr<T>&> {
-  using type = scopes::singleton_shared;
-};
-template <class T>
-struct scope_traits_ext<T&> {
-  using type = scopes::singleton_non_shared;
-};
-template <class T>
-using scope_traits_ext_t = typename scope_traits_ext<T>::type;
-}
-namespace scopes {
-class deduce_ext {
- public:
-  template <class TExpected, class TGiven>
-  class scope {
-   public:
-    template <class T, class TInjector>
-    using is_referable =
-        typename type_traits::scope_traits_ext_t<T>::template scope<TExpected, TGiven>::template is_referable<T, TInjector>;
-    template <class T, class TName, class TProvider>
-    static decltype(typename type_traits::scope_traits_ext_t<T>::template scope<TExpected, TGiven>{}
-                        .template try_create<T, TName>(aux::declval<TProvider>()))
-    try_create(const TProvider&);
-    template <class T, class TName, class TProvider>
-    auto create(const TProvider& provider) {
-      using scope_traits = type_traits::scope_traits_ext_t<T>;
-      using scope = typename scope_traits::template scope<TExpected, TGiven>;
-      return scope{}.template create<T, TName>(provider);
-    }
-  };
-};
 }
 namespace policies {
 namespace detail {

@@ -17,16 +17,16 @@ class deduce_ext {
    public:
     template <class T, class TInjector>
     using is_referable =
-        typename type_traits::scope_traits_ext_t<T>::template scope<TExpected, TGiven>::template is_referable<T, TInjector>;
+        typename type_traits::scope_traits_ext_t<TGiven>::template scope<TExpected, TGiven>::template is_referable<TGiven, TInjector>;
 
     template <class T, class TName, class TProvider>
-    static decltype(typename type_traits::scope_traits_ext_t<T>::template scope<TExpected, TGiven>{}.template try_create<T, TName>(
+    static decltype(typename type_traits::scope_traits_ext_t<TGiven>::template scope<TExpected, TGiven>{}.template try_create<TGiven, TName>(
         aux::declval<TProvider>()))
     try_create(const TProvider&);
 
     template <class T, class TName, class TProvider>
     auto create(const TProvider& provider) {
-      using scope_traits = type_traits::scope_traits_ext_t<T>;
+      using scope_traits = type_traits::scope_traits_ext_t<TGiven>;
       using scope = typename scope_traits::template scope<TExpected, TGiven>;
       return scope{}.template create<T, TName>(provider);
     }

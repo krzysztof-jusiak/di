@@ -9,7 +9,7 @@
 #include "boost/di/fwd.hpp"
 #include "boost/di/fwd_ext.hpp"
 #include "boost/di/scopes/singleton.hpp"
-#include "boost/di/scopes/external.hpp"
+#include "boost/di/scopes/detail/underlying.hpp"
 #include "boost/di/scopes/unique.hpp"
 
 namespace type_traits {
@@ -21,32 +21,32 @@ struct scope_traits_ext {
 
 template <class T>
 struct scope_traits_ext<std::reference_wrapper<T>> {
-  using type = scopes::external;
+  using type = scopes::detail::EXTERNAL;
 };
 
 template <class T>
 struct scope_traits_ext<boost::reference_wrapper<T>> {
-  using type = scopes::external;
+  using type = scopes::detail::EXTERNAL;
 };
 
 template <class T>
 struct scope_traits_ext<std::initializer_list<T>> {
-  using type = scopes::external;
+  using type = scopes::detail::EXTERNAL;
 };
 
 template <class T>
 struct scope_traits_ext<std::shared_ptr<T>> {
-  using type = scopes::singleton_shared;
+  using type = scopes::detail::EXTERNAL;
 };
 
 template <class T>
 struct scope_traits_ext<std::shared_ptr<T>&> {
-  using type = scopes::singleton_shared;
+  using type = scopes::detail::EXTERNAL;
 };
 
 template <class T>
 struct scope_traits_ext<T&> {
-  using type = scopes::singleton_non_shared;
+  using type = scopes::detail::EXTERNAL;
 };
 
 /*template <int N>*/

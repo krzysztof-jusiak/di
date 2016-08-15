@@ -64,6 +64,7 @@ struct shared<TScope, T&> {
   struct is_referable : aux::true_type {};
 
   explicit shared(T& object) : object(&object) {}
+  explicit shared(std::reference_wrapper<T> object) : object(&object.get()) {}
 
   template <class I>
   explicit shared(I);  // compile clean

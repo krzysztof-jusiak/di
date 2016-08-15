@@ -379,6 +379,12 @@ auto has_shared_ptr_impl(T &&) -> aux::is_valid_expr<decltype(std::shared_ptr<T>
 template<class T>
 using has_shared_ptr = decltype(has_shared_ptr_impl(declval<T>()));
 
+template<class>
+struct is_reference : false_type {};
+
+template<class T>
+struct is_reference<std::reference_wrapper<T>> : true_type {};
+
 template <class R, class... TArgs>
 struct function_traits<R (*)(TArgs...)> {
   using result_type = R;

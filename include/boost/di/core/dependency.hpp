@@ -14,6 +14,7 @@
 #include "boost/di/core/array.hpp"
 #include "boost/di/fwd.hpp"
 #include "boost/di/scopes/deduce.hpp"
+#include "boost/di/scopes/deduce_ext.hpp"
 #include "boost/di/scopes/external.hpp"
 #include "boost/di/scopes/detail/underlying.hpp"
 
@@ -154,23 +155,41 @@ class dependency
             __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
-    using dependency = dependency<scopes::external, array<type>, std::initializer_list<T>, TName, TPriority>;
+    using dependency = dependency<scopes::detail::underlying<std::initializer_list<T>, scopes::deduce_ext>, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
 
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && aux::is_same<TScope, scopes::deduce>::value) = 0,
-            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
-  auto to(std::reference_wrapper<T>&& object) noexcept {
-    using dependency =
-        dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
-    return dependency{object};
-  }
+  template<class Scope, class T>
+  struct get_scope {
+    using type = Scope;
+  };
+
+  template<class T>
+  struct get_scope<scopes::deduce, T> {
+    using type = scopes::deduce_ext;
+  };
+
+  template<class T>
+  struct get_scope<scopes::singleton, T> {
+    using type = scopes::singleton_non_shared;
+  };
+
+  template<class T>
+  struct get_scope<scopes::singleton, std::shared_ptr<T>> {
+    using type = scopes::singleton_shared;
+  };
+
+  template<class T>
+  struct get_scope<scopes::singleton, std::shared_ptr<T>&> {
+    using type = scopes::singleton_shared;
+  };
 
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, typename re<aux::decay_t<T>>::type, aux::valid<>>) = 0>
   auto to(const T& object) noexcept {
     using dependency =
-        dependency<scopes::detail::underlying<typename ref_traits<T>::type, TScope>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+        dependency<scopes::detail::underlying<typename ref_traits<T>::type
+        , typename get_scope<TScope, T>::type>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{object};
   }
 

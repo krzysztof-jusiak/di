@@ -13,27 +13,6 @@
 
 namespace scopes {
 
-class external {
- public:
-  template <class TExpected, class TGiven>
-  struct scope {
-    template <class, class>
-    using is_referable = aux::true_type;
-
-    explicit scope(TGiven& object) : object_{object} {}
-
-    template <class, class, class TProvider>
-    static wrappers::shared<external, TGiven&> try_create(const TProvider&);
-
-    template <class, class, class TProvider>
-    auto create(const TProvider&) const noexcept {
-      return object_;
-    }
-
-    wrappers::shared<external, TGiven&> object_;
-  };
-};
-
 }  // scopes
 
 #endif
