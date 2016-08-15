@@ -371,6 +371,14 @@ struct is_callable : decltype(is_callable_impl((callable_base<T>*)0)) {};
 template <class>
 struct function_traits;
 
+aux::false_type has_shared_ptr_impl(...);
+
+template <class T>
+auto has_shared_ptr_impl(T &&) -> aux::is_valid_expr<decltype(std::shared_ptr<T>{})>;
+
+template<class T>
+using has_shared_ptr = decltype(has_shared_ptr_impl(declval<T>()));
+
 template <class R, class... TArgs>
 struct function_traits<R (*)(TArgs...)> {
   using result_type = R;

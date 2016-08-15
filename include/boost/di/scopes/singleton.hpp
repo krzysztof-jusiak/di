@@ -13,14 +13,9 @@
 
 namespace scopes {
 
-aux::false_type has_shared_ptr__(...);
-
-template <class T>
-auto has_shared_ptr__(T &&) -> aux::is_valid_expr<decltype(std::shared_ptr<T>{})>;
-
 class singleton {
  public:
-  template <class, class T, class = decltype(has_shared_ptr__(aux::declval<T>()))>
+  template <class, class T, class = aux::has_shared_ptr<T>>
   class scope {
    public:
     template <class T_, class>
