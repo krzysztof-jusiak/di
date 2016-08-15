@@ -1241,32 +1241,6 @@ class external {
     }
     wrappers::shared<external, TGiven&> object_;
   };
-  template <class TExpected, class TGiven>
-  struct scope<TExpected, std::shared_ptr<TGiven>> {
-    template <class T, class>
-    using is_referable = typename wrappers::shared<external, TGiven>::template is_referable<aux::remove_qualifiers_t<T>>;
-    explicit scope(const std::shared_ptr<TGiven>& object) : object_{object} {}
-    template <class, class, class TProvider>
-    static wrappers::shared<external, TGiven> try_create(const TProvider&);
-    template <class, class, class TProvider>
-    auto create(const TProvider&) const noexcept {
-      return wrappers::shared<external, TGiven>{object_};
-    }
-    std::shared_ptr<TGiven> object_;
-  };
-  template <class TExpected, class TGiven>
-  struct scope<TExpected, std::initializer_list<TGiven>> {
-    template <class, class>
-    using is_referable = aux::false_type;
-    scope(const std::initializer_list<TGiven>& object) : object_(object) {}
-    template <class, class, class TProvider>
-    static std::initializer_list<TGiven> try_create(const TProvider&);
-    template <class, class, class TProvider>
-    auto create(const TProvider&) const noexcept {
-      return wrappers::unique<external, std::initializer_list<TGiven>>{object_};
-    }
-    std::initializer_list<TGiven> object_;
-  };
 };
 }
 namespace concepts {
