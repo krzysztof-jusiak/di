@@ -13,9 +13,8 @@
 
 namespace scopes {
 
-class singleton {
- public:
-  template <class, class T, class = aux::has_shared_ptr<T>>
+struct singleton_non_shared {
+  template <class, class T>
   class scope {
    public:
     template <class T_, class>
@@ -37,9 +36,11 @@ class singleton {
       return wrappers::shared<singleton, T&>(object);
     }
   };
+};
 
-  template <class _, class T>
-  class scope<_, T, aux::true_type> {
+struct singleton_shared {
+  template <class, class T>
+  class scope {
    public:
     template <class T_, class>
     using is_referable = typename wrappers::shared<singleton, T>::template is_referable<T_>;
@@ -61,6 +62,15 @@ class singleton {
       return wrappers::shared<singleton, type, std::shared_ptr<type>&>{object};
     }
   };
+};
+
+class singleton {
+ public:
+  template <class _, class T, class = aux::has_shared_ptr<T>>
+  struct scope : singleton_non_shared::scope<_, T> {};
+
+  template <class _, class T>
+  struct scope<_, T, aux::true_type> : singleton_shared::scope<_, T> {};
 };
 
 }  // scopes

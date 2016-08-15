@@ -106,6 +106,8 @@ class initializer_list;
 }
 namespace boost {
 template <class>
+class reference_wrapper;
+template <class>
 class shared_ptr;
 }
 BOOST_DI_NAMESPACE_BEGIN
@@ -1052,9 +1054,8 @@ struct shared<TScope, T&> {
 };
 }
 namespace scopes {
-class singleton {
- public:
-  template <class, class T, class = aux::has_shared_ptr<T>>
+struct singleton_non_shared {
+  template <class, class T>
   class scope {
    public:
     template <class T_, class>
@@ -1074,8 +1075,10 @@ class singleton {
       return wrappers::shared<singleton, T&>(object);
     }
   };
-  template <class _, class T>
-  class scope<_, T, aux::true_type> {
+};
+struct singleton_shared {
+  template <class, class T>
+  class scope {
    public:
     template <class T_, class>
     using is_referable = typename wrappers::shared<singleton, T>::template is_referable<T_>;
@@ -1095,6 +1098,13 @@ class singleton {
       return wrappers::shared<singleton, type, std::shared_ptr<type>&>{object};
     }
   };
+};
+class singleton {
+ public:
+  template <class _, class T, class = aux::has_shared_ptr<T>>
+  struct scope : singleton_non_shared::scope<_, T> {};
+  template <class _, class T>
+  struct scope<_, T, aux::true_type> : singleton_shared::scope<_, T> {};
 };
 }
 namespace wrappers {
@@ -2792,6 +2802,60 @@ inline auto make_injector(TDeps... args) noexcept {
   return __BOOST_DI_MAKE_INJECTOR(
       core::injector<TConfig, decltype(((TConfig*)0)->policies((core::injector<TConfig, core::pool<>, TDeps...>*)0)), TDeps...>{
           core::init{}, static_cast<TDeps&&>(args)...});
+}
+namespace type_traits {
+template <class T>
+struct scope_traits_ext {
+  using type = scopes::unique;
+};
+template <class T>
+struct scope_traits_ext<std::reference_wrapper<T>> {
+  using type = scopes::external;
+};
+template <class T>
+struct scope_traits_ext<boost::reference_wrapper<T>> {
+  using type = scopes::external;
+};
+template <class T>
+struct scope_traits_ext<std::initializer_list<T>> {
+  using type = scopes::external;
+};
+template <class T>
+struct scope_traits_ext<std::shared_ptr<T>> {
+  using type = scopes::singleton_shared;
+};
+template <class T>
+struct scope_traits_ext<std::shared_ptr<T>&> {
+  using type = scopes::singleton_shared;
+};
+template <class T>
+struct scope_traits_ext<T&> {
+  using type = scopes::singleton_non_shared;
+};
+template <class T>
+using scope_traits_ext_t = typename scope_traits_ext<T>::type;
+}
+namespace scopes {
+class deduce_ext {
+ public:
+  template <class TExpected, class TGiven>
+  class scope {
+   public:
+    template <class T, class TInjector>
+    using is_referable =
+        typename type_traits::scope_traits_ext_t<T>::template scope<TExpected, TGiven>::template is_referable<T, TInjector>;
+    template <class T, class TName, class TProvider>
+    static decltype(typename type_traits::scope_traits_ext_t<T>::template scope<TExpected, TGiven>{}
+                        .template try_create<T, TName>(aux::declval<TProvider>()))
+    try_create(const TProvider&);
+    template <class T, class TName, class TProvider>
+    auto create(const TProvider& provider) {
+      using scope_traits = type_traits::scope_traits_ext_t<T>;
+      using scope = typename scope_traits::template scope<TExpected, TGiven>;
+      return scope{}.template create<T, TName>(provider);
+    }
+  };
+};
 }
 namespace policies {
 namespace detail {

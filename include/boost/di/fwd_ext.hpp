@@ -45,6 +45,7 @@ template <class>
 class initializer_list;
 }  // std
 namespace boost {
+template<class> class reference_wrapper;
 template <class>
 class shared_ptr;
 }  // boost
