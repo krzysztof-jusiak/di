@@ -100,6 +100,8 @@ _LIBCPP_END_NAMESPACE_STD
 #endif
 namespace std {
 template <class>
+class reference_wrapper;
+template <class>
 class initializer_list;
 }
 namespace boost {
@@ -1210,23 +1212,6 @@ class deduce {
   };
 };
 }
-template <class T>
-class reference_wrapper {
- public:
-  typedef T type;
-  reference_wrapper(T& ref) noexcept : _ptr(&ref) {}
-  reference_wrapper(T&&) = delete;
-  reference_wrapper(const reference_wrapper&) noexcept = default;
-  reference_wrapper& operator=(const reference_wrapper& x) noexcept = default;
-  operator T&() const noexcept { return *_ptr; }
-
- private:
-  T* _ptr;
-};
-template <class T>
-auto ref(T& t) {
-  return reference_wrapper<T>{t};
-}
 namespace scopes {
 class external {
  public:
@@ -1623,7 +1608,7 @@ class dependency
     using type = T;
   };
   template <class T>
-  struct re<reference_wrapper<T>> {
+  struct re<std::reference_wrapper<T>> {
     using type = T;
   };
   template <class T, class U>
@@ -1670,7 +1655,7 @@ class dependency
   }
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
-  auto to(const reference_wrapper<T>& object) noexcept {
+  auto to(std::reference_wrapper<T>&& object) noexcept {
     using dependency =
         dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{object};

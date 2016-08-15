@@ -40,6 +40,7 @@ _LIBCPP_END_NAMESPACE_STD
 #endif  // __pph__
 
 namespace std {
+template<class> class reference_wrapper;
 template <class>
 class initializer_list;
 }  // std

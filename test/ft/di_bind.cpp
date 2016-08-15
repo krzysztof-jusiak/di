@@ -303,7 +303,7 @@ test bind_shared_ptr_interface = [] {
 
 test scopes_instance_interface_ptr = [] {
   std::unique_ptr<i1> object = std::make_unique<impl1>();
-  auto injector = di::make_injector(di::bind<i1>().to(di::ref(*object)));
+  auto injector = di::make_injector(di::bind<i1>().to(std::ref(*object)));
   injector.create<const i1 &>();
   injector.create<i1 &>();
 };
@@ -395,7 +395,7 @@ test instances_ref_cref = [] {
     const double &d_;
   };
 
-  auto injector = make_injector(di::bind<int>().to(di::ref(i)), di::bind<double>().to(di::ref(d)));
+  auto injector = make_injector(di::bind<int>().to(std::ref(i)), di::bind<double>().to(std::ref(d)));
   auto object = injector.create<refs>();
 
   expect(i == object.i_);
@@ -604,7 +604,7 @@ test bind_non_owning_ptr = [] {
   struct c {
     c(Pointer &ptr) { expect(i == ptr); }
   };
-  auto module = [](Pointer *ptr) { return di::bind<Pointer>().to(di::ref(*ptr)); };
+  auto module = [](Pointer *ptr) { return di::bind<Pointer>().to(std::ref(*ptr)); };
   di::aux::owner<Pointer *> ptr{new Pointer{i}};
   auto injector = di::make_injector(module(ptr));
 

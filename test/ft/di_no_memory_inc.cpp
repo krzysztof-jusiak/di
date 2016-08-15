@@ -5,6 +5,7 @@
 // (See accompanying file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
 #include "boost/di.hpp"  // no #include <memory>
+#include <functional>
 
 namespace di = boost::di;
 
@@ -23,7 +24,7 @@ test bind_and_create_value = [] {
     explicit c(int& i_) { expect(&i_ == &i); }
   };
 
-  auto injector = di::make_injector(di::bind<int>().to(di::ref(i)));
+  auto injector = di::make_injector(di::bind<int>().to(std::ref(i)));
 
   injector.create<c>();
 };
@@ -35,7 +36,7 @@ test bind_and_create_value_via_inject = [] {
     BOOST_DI_INJECT(explicit c, int& i_) { expect(&i_ == &i); }
   };
 
-  auto injector = di::make_injector(di::bind<int>().to(di::ref(i)));
+  auto injector = di::make_injector(di::bind<int>().to(std::ref(i)));
 
   injector.create<c>();
 };

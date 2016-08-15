@@ -103,7 +103,7 @@ class dependency
   };
 
   template<class T>
-  struct re<reference_wrapper<T>> {
+  struct re<std::reference_wrapper<T>> {
     using type = T;
   };
 
@@ -160,7 +160,7 @@ class dependency
 
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value && aux::is_same<TScope, scopes::deduce>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
-  auto to(const reference_wrapper<T>& object) noexcept {
+  auto to(std::reference_wrapper<T>&& object) noexcept {
     using dependency =
         dependency<scopes::external, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{object};
