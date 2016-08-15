@@ -405,7 +405,6 @@ test instances_ref_cref = [] {
 
 test bind_chars_to_string = [] {
   auto injector = di::make_injector(di::bind<std::string>().to("str"));
-
   expect("str" == injector.create<std::string>());
 };
 

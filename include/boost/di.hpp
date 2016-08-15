@@ -1582,6 +1582,11 @@ template <class T>
 struct scope_traits_ext<T&> {
   using type = scopes::detail::EXTERNAL;
 };
+template <>
+struct scope_traits_ext<std::string> {
+  using type = scopes::detail::EXTERNAL;
+};
+using type = scopes::unique;
 template <class T>
 using scope_traits_ext_t = typename scope_traits_ext<T>::type;
 }
