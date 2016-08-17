@@ -20,27 +20,7 @@ struct scope_traits_ext {
 };
 
 template <class T>
-struct scope_traits_ext<std::reference_wrapper<T>> {
-  using type = scopes::detail::EXTERNAL;
-};
-
-template <class T>
-struct scope_traits_ext<boost::reference_wrapper<T>> {
-  using type = scopes::detail::EXTERNAL;
-};
-
-template <class T>
-struct scope_traits_ext<std::initializer_list<T>> {
-  using type = scopes::detail::EXTERNAL;
-};
-
-template <class T>
 struct scope_traits_ext<std::shared_ptr<T>> {
-  using type = scopes::detail::EXTERNAL;
-};
-
-template <class T>
-struct scope_traits_ext<std::shared_ptr<T>&> {
   using type = scopes::detail::EXTERNAL;
 };
 
@@ -48,16 +28,6 @@ template <class T>
 struct scope_traits_ext<T&> {
   using type = scopes::detail::EXTERNAL;
 };
-
-template <>
-struct scope_traits_ext<std::string> {
-  using type = scopes::detail::EXTERNAL;
-};
-
-//template <int N>
-//struct scope_traits_ext<const char[N]> {
-  ////using type = scopes::unique;
-//};
 
 template <class T>
 using scope_traits_ext_t = typename scope_traits_ext<T>::type;

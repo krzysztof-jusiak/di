@@ -280,6 +280,12 @@ struct test_is_convertible__ {
   static void test(T);
 };
 
+template<class T>
+struct is_reference : false_type { };
+
+template<class T>
+struct is_reference<T&> : true_type { };
+
 template <class T, class U, class = decltype(test_is_convertible__::test<U>(declval<T>()))>
 true_type test_is_convertible(int);
 
@@ -378,12 +384,6 @@ auto has_shared_ptr_impl(T &&) -> aux::is_valid_expr<decltype(std::shared_ptr<T>
 
 template<class T>
 using has_shared_ptr = decltype(has_shared_ptr_impl(declval<T>()));
-
-template<class>
-struct is_reference : false_type {};
-
-template<class T>
-struct is_reference<std::reference_wrapper<T>> : true_type {};
 
 template <class R, class... TArgs>
 struct function_traits<R (*)(TArgs...)> {

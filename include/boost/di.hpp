@@ -100,13 +100,9 @@ _LIBCPP_END_NAMESPACE_STD
 #endif
 namespace std {
 template <class>
-class reference_wrapper;
-template <class>
 class initializer_list;
 }
 namespace boost {
-template <class>
-class reference_wrapper;
 template <class>
 class shared_ptr;
 }
@@ -499,6 +495,10 @@ struct test_is_convertible__ {
   template <class T>
   static void test(T);
 };
+template <class T>
+struct is_reference : false_type {};
+template <class T>
+struct is_reference<T&> : true_type {};
 template <class T, class U, class = decltype(test_is_convertible__::test<U>(declval<T>()))>
 true_type test_is_convertible(int);
 template <class, class>
@@ -575,10 +575,6 @@ template <class T>
 auto has_shared_ptr_impl(T &&) -> aux::is_valid_expr<decltype(std::shared_ptr<T>{})>;
 template <class T>
 using has_shared_ptr = decltype(has_shared_ptr_impl(declval<T>()));
-template <class>
-struct is_reference : false_type {};
-template <class T>
-struct is_reference<std::reference_wrapper<T>> : true_type {};
 template <class R, class... TArgs>
 struct function_traits<R (*)(TArgs...)> {
   using result_type = R;
@@ -1047,7 +1043,6 @@ struct shared<TScope, T&> {
   template <class>
   struct is_referable : aux::true_type {};
   explicit shared(T& object) : object(&object) {}
-  explicit shared(std::reference_wrapper<T> object) : object(&object.get()) {}
   template <class I>
   explicit shared(I);
   template <class I, __BOOST_DI_REQUIRES(aux::is_convertible<T, I>::value) = 0>
@@ -1403,27 +1398,10 @@ struct arg {
 template <class T>
 struct wrapper_traits {
   using type = wrappers::unique<class unique, T>;
-  using is_referable = aux::false_type;
-};
-template <class T>
-struct wrapper_traits<std::reference_wrapper<T>> {
-  using type = wrappers::shared<class sharedj, T&>;
-  using is_referable = aux::true_type;
 };
 template <class T>
 struct wrapper_traits<std::shared_ptr<T>> {
   using type = wrappers::shared<class shared, T>;
-  using is_referable = aux::true_type;
-};
-template <class T>
-struct wrapper_traits<std::shared_ptr<T>&> {
-  using type = wrappers::shared<class shared, T>;
-  using is_referable = aux::true_type;
-};
-template <class T>
-struct wrapper_traits<T&> {
-  using type = wrappers::shared<class shared_ref, T>;
-  using is_referable = aux::true_type;
 };
 template <class T>
 using wrapper_traits_t = typename wrapper_traits<T>::type;
@@ -1455,16 +1433,16 @@ struct underlying {
    public:
     template <class T, class TInjector>
     using is_referable = typename TScope::template scope<TExpected, TGiven>::template is_referable<T, TInjector>;
-    explicit scope(const U& object) : object_(object) {}
+    explicit scope(U object) : object_(object) {}
     template <class TInjector>
     struct provider {
       using injector_t = TInjector;
       template <class TMemory = type_traits::heap>
-      auto get(const TMemory& = {}) const {
+      decltype(auto) get(const TMemory& = {}) const {
         return object_;
       }
       const TInjector& injector_;
-      const U& object_;
+      U object_;
     };
     template <class T, class TName, class TProvider>
     static decltype(typename TScope::template scope<TExpected, TGiven>{}.template try_create<T, TName>(
@@ -1478,7 +1456,7 @@ struct underlying {
     U object_;
   };
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value && !aux::is_reference<TGiven>::value)> {
+  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
     template <class, class>
     using is_referable =
         aux::integral_constant<bool, !aux::is_callable<TExpected>::value || !has_result_type<TExpected>::value>;
@@ -1559,34 +1537,13 @@ struct scope_traits_ext {
   using type = scopes::unique;
 };
 template <class T>
-struct scope_traits_ext<std::reference_wrapper<T>> {
-  using type = scopes::detail::EXTERNAL;
-};
-template <class T>
-struct scope_traits_ext<boost::reference_wrapper<T>> {
-  using type = scopes::detail::EXTERNAL;
-};
-template <class T>
-struct scope_traits_ext<std::initializer_list<T>> {
-  using type = scopes::detail::EXTERNAL;
-};
-template <class T>
 struct scope_traits_ext<std::shared_ptr<T>> {
-  using type = scopes::detail::EXTERNAL;
-};
-template <class T>
-struct scope_traits_ext<std::shared_ptr<T>&> {
   using type = scopes::detail::EXTERNAL;
 };
 template <class T>
 struct scope_traits_ext<T&> {
   using type = scopes::detail::EXTERNAL;
 };
-template <>
-struct scope_traits_ext<std::string> {
-  using type = scopes::detail::EXTERNAL;
-};
-using type = scopes::unique;
 template <class T>
 using scope_traits_ext_t = typename scope_traits_ext<T>::type;
 }
@@ -1648,25 +1605,21 @@ class dependency
   struct ref_traits {
     using type = T;
   };
-  template <int N>
-  struct ref_traits<const char (&)[N]> {
-    using type = TExpected;
-  };
-  template <int N>
-  struct ref_traits<char[N]> {
-    using type = TExpected;
-  };
   template <class R, class... Ts>
   struct ref_traits<R (&)(Ts...)> {
     using type = TExpected;
   };
-  template <class R, class... Ts>
-  struct ref_traits<R(Ts...)> {
+  template <int N>
+  struct ref_traits<const char (&)[N]> {
     using type = TExpected;
   };
   template <class T>
   struct ref_traits<std::shared_ptr<T>&> {
-    using type = std::shared_ptr<T>;
+    using type = std::shared_ptr<TExpected>;
+  };
+  template <class T>
+  struct ref_traits<std::shared_ptr<T>> {
+    using type = std::shared_ptr<TExpected>;
   };
   template <class T, class>
   struct deduce_traits {
@@ -1675,14 +1628,6 @@ class dependency
   template <class T>
   struct deduce_traits<deduced, T> {
     using type = aux::decay_t<T>;
-  };
-  template <class T>
-  struct re {
-    using type = T;
-  };
-  template <class T>
-  struct re<std::reference_wrapper<T>> {
-    using type = T;
   };
   template <class T, class U>
   using deduce_traits_t = typename deduce_traits<T, U>::type;
@@ -1748,9 +1693,8 @@ class dependency
     using type = scopes::singleton_shared;
   };
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
-            __BOOST_DI_REQUIRES_MSG(
-                concepts::boundable<deduce_traits_t<TExpected, T>, typename re<aux::decay_t<T>>::type, aux::valid<>>) = 0>
-  auto to(const T& object) noexcept {
+            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
+  auto to(T&& object) noexcept {
     using dependency = dependency<scopes::detail::underlying<typename ref_traits<T>::type, typename get_scope<TScope, T>::type>,
                                   deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
     return dependency{object};

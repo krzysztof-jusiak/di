@@ -24,32 +24,13 @@ struct arg {
 template <class T>
 struct wrapper_traits {
   using type = wrappers::unique<class unique, T>;
-  using is_referable = aux::false_type;
-};
-
-template <class T>
-struct wrapper_traits<std::reference_wrapper<T>> {
-  using type = wrappers::shared<class sharedj, T&>;
-  using is_referable = aux::true_type;
 };
 
 template <class T>
 struct wrapper_traits<std::shared_ptr<T>> {
   using type = wrappers::shared<class shared, T>;
-  using is_referable = aux::true_type;
 };
 
-template <class T>
-struct wrapper_traits<std::shared_ptr<T>&> {
-  using type = wrappers::shared<class shared, T>;
-  using is_referable = aux::true_type;
-};
-
-template <class T>
-struct wrapper_traits<T&> {
-  using type = wrappers::shared<class shared_ref, T>;
-  using is_referable = aux::true_type;
-};
 
 template <class T>
 using wrapper_traits_t = typename wrapper_traits<T>::type;
@@ -83,19 +64,19 @@ struct underlying {
     template <class T, class TInjector>
     using is_referable = typename TScope::template scope<TExpected, TGiven>::template is_referable<T, TInjector>;
 
-    explicit scope(const U& object) : object_(object) {}
+    explicit scope(U object) : object_(object) {}
 
     template <class TInjector>
     struct provider {
       using injector_t = TInjector;
 
       template <class TMemory = type_traits::heap>
-      auto get(const TMemory& = {}) const {
+      decltype(auto) get(const TMemory& = {}) const {
         return object_;
       }
 
       const TInjector& injector_;
-      const U& object_;
+      U object_;
     };
 
     template <class T, class TName, class TProvider>
@@ -113,7 +94,7 @@ struct underlying {
   };
 
   template <class TExpected, class TGiven>
-  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value && !aux::is_reference<TGiven>::value)> {
+  struct scope<TExpected, TGiven, __BOOST_DI_REQUIRES(aux::is_callable<TGiven>::value)> {
     template <class, class>
     using is_referable =
         aux::integral_constant<bool, !aux::is_callable<TExpected>::value || !has_result_type<TExpected>::value>;

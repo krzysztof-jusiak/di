@@ -63,29 +63,24 @@ class dependency
     using type = T;
   };
 
-  template <int N>
-  struct ref_traits<const char (&)[N]> {
-    using type = TExpected;
-  };
-
-  template <int N>
-  struct ref_traits<char [N]> {
-    using type = TExpected;
-  };
-
   template <class R, class... Ts>
   struct ref_traits<R (&)(Ts...)> {
     using type = TExpected;
   };
 
-  template <class R, class... Ts>
-  struct ref_traits<R (Ts...)> {
+  template <int N>
+  struct ref_traits<const char (&) [N]> {
     using type = TExpected;
   };
 
   template <class T>
   struct ref_traits<std::shared_ptr<T>&> {
-    using type = std::shared_ptr<T>;
+    using type = std::shared_ptr<TExpected>;
+  };
+
+  template <class T>
+  struct ref_traits<std::shared_ptr<T>> {
+    using type = std::shared_ptr<TExpected>;
   };
 
   template <class T, class>
@@ -96,16 +91,6 @@ class dependency
   template <class T>
   struct deduce_traits<deduced, T> {
     using type = aux::decay_t<T>;
-  };
-
-  template<class T>
-  struct re {
-    using type = T;
-  };
-
-  template<class T>
-  struct re<std::reference_wrapper<T>> {
-    using type = T;
   };
 
   template <class T, class U>
@@ -185,8 +170,8 @@ class dependency
   };
 
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
-            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, typename re<aux::decay_t<T>>::type, aux::valid<>>) = 0>
-  auto to(const T& object) noexcept {
+            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
+  auto to(T&& object) noexcept {
     using dependency =
         dependency<scopes::detail::underlying<typename ref_traits<T>::type
         , typename get_scope<TScope, T>::type>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
