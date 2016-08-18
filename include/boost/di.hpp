@@ -1404,6 +1404,10 @@ struct wrapper_traits<std::shared_ptr<T>> {
   using type = wrappers::shared<class shared, T>;
 };
 template <class T>
+struct wrapper_traits<std::shared_ptr<T>&> {
+  using type = wrappers::shared<class shared, T, std::shared_ptr<T>&>;
+};
+template <class T>
 using wrapper_traits_t = typename wrapper_traits<T>::type;
 struct EXTERNAL {
   template <class, class>
@@ -1615,7 +1619,7 @@ class dependency
   };
   template <class T>
   struct ref_traits<std::shared_ptr<T>&> {
-    using type = std::shared_ptr<TExpected>;
+    using type = std::shared_ptr<TExpected>&;
   };
   template <class T>
   struct ref_traits<std::shared_ptr<T>> {

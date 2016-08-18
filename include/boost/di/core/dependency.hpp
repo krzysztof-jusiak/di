@@ -75,7 +75,7 @@ class dependency
 
   template <class T>
   struct ref_traits<std::shared_ptr<T>&> {
-    using type = std::shared_ptr<TExpected>;
+    using type = std::shared_ptr<TExpected>&;
   };
 
   template <class T>

@@ -31,6 +31,10 @@ struct wrapper_traits<std::shared_ptr<T>> {
   using type = wrappers::shared<class shared, T>;
 };
 
+template <class T>
+struct wrapper_traits<std::shared_ptr<T>&> {
+  using type = wrappers::shared<class shared, T, std::shared_ptr<T>&>;
+};
 
 template <class T>
 using wrapper_traits_t = typename wrapper_traits<T>::type;
