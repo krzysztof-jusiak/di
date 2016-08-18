@@ -1452,6 +1452,8 @@ struct underlying {
     static decltype(typename TScope::template scope<TExpected, TGiven>{}.template try_create<T, TName>(
         aux::declval<provider<typename TProvider::injector_t>>()))
     try_create(const TProvider&);
+    template <class>
+    struct q;
     template <class T, class TName, class TProvider>
     auto create(const TProvider& pr) {
       using scope = typename TScope::template scope<TExpected, TGiven>;
@@ -1542,7 +1544,7 @@ struct scope_traits_ext {
 };
 template <class T>
 struct scope_traits_ext<std::shared_ptr<T>> {
-  using type = scopes::detail::EXTERNAL;
+  using type = scopes::singleton_shared;
 };
 template <class T>
 struct scope_traits_ext<T&> {

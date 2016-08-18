@@ -1069,10 +1069,10 @@ int main() { di::make_injector<test_config>(); }
 #if (__clang_major__ == 3) && (__clang_minor__ > 4) || defined(__GCC___) || defined(__MSVC__)
           "creatable constraint not satisfied",
 #endif
-          "scoped<.*>::is_not_convertible_to<.*>", "external", "int", "int.*\\*"
+          "scoped<.*>::is_not_convertible_to<.*>", "unique", "int", "int.*\\*"
 #if !defined(__MSVC__)
           ,
-          "external is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
+          "scoped object is not convertible to the requested type, did you mistake the scope: 'di::bind<T>.in\\(scope\\)'?"
 #endif
           );
 
@@ -1088,10 +1088,10 @@ int main() { di::make_injector<test_config>(); }
 #if (__clang_major__ == 3) && (__clang_minor__ > 4) || defined(__GCC___) || defined(__MSVC__)
           "creatable constraint not satisfied",
 #endif
-          "scoped<.*>::is_not_convertible_to<.*>", "external", "int", "int.*&"
+          "scoped<.*>::is_not_convertible_to<.*>", "unique", "int", "int.*&"
 #if !defined(__MSVC__)
           ,
-          "external is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
+          "scoped object is not convertible to the requested type, did you mistake the scope: 'di::bind<T>.in\\(scope\\)'?"
 #endif
           );
 
@@ -1108,10 +1108,10 @@ int main() { di::make_injector<test_config>(); }
 #if (__clang_major__ == 3) && (__clang_minor__ > 4) || defined(__GCC___) || defined(__MSVC__)
           "creatable constraint not satisfied",
 #endif
-          "scoped<.*>::is_not_convertible_to<.*>", "external", "int", "int.*&"
+          "scoped<.*>::is_not_convertible_to<.*>", "unique", "int", "int.*&"
 #if !defined(__MSVC__)
           ,
-          "external is not convertible to the requested type, verify binding: 'di::bind<T>.to\\(value\\)'?"
+          "scoped object is not convertible to the requested type, did you mistake the scope: 'di::bind<T>.in\\(scope\\)'?"
 #endif
           );
 

@@ -21,7 +21,7 @@ struct scope_traits_ext {
 
 template <class T>
 struct scope_traits_ext<std::shared_ptr<T>> {
-  using type = scopes::detail::EXTERNAL;
+  using type = scopes::singleton_shared;
 };
 
 template <class T>
