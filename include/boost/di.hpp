@@ -1389,13 +1389,7 @@ struct external_traits<scopes::singleton, std::shared_ptr<T>&> {
 template <class TScope, class T>
 using external_traits_t = typename external_traits<TScope, T>::type;
 }
-namespace scopes {
-template <class T, class TExpected, class TGiven>
-struct arg {
-  using type = T;
-  using expected = TExpected;
-  using given = TGiven;
-};
+namespace type_traits {
 template <class T>
 struct wrapper_traits {
   using type = wrappers::unique<class unique, T>;
@@ -1410,6 +1404,8 @@ struct wrapper_traits<std::shared_ptr<T>&> {
 };
 template <class T>
 using wrapper_traits_t = typename wrapper_traits<T>::type;
+}
+namespace scopes {
 template <class, class = int>
 struct has_result_type : ::boost::di::v1_0_1::aux::false_type {};
 template <class T>
@@ -1455,10 +1451,10 @@ struct external_ref {
     template <class T, class TInjector>
     using is_referable = aux::true_type;
     template <class, class, class TProvider>
-    static auto try_create(const TProvider& p) -> wrapper_traits_t<decltype(p.get())>;
+    static auto try_create(const TProvider& p) -> type_traits::wrapper_traits_t<decltype(p.get())>;
     template <class, class, class TProvider>
     auto create(const TProvider& p) {
-      return wrapper_traits_t<decltype(p.get())>{p.get()};
+      return type_traits::wrapper_traits_t<decltype(p.get())>{p.get()};
     }
   };
 };
@@ -1466,6 +1462,12 @@ template <class U, class TScope>
 struct external_expr {
   template <class TExpected, class TGiven>
   struct scope {
+    template <class T>
+    struct arg {
+      using type = T;
+      using expected = TExpected;
+      using given = TGiven;
+    };
     template <class, class>
     using is_referable =
         aux::integral_constant<bool, !aux::is_callable<TExpected>::value || !has_result_type<TExpected>::value>;
@@ -1473,16 +1475,14 @@ struct external_expr {
     struct provider {
       using injector_t = TInjector;
       template <class TMemory = type_traits::heap,
-                __BOOST_DI_REQUIRES(aux::always<TMemory>::value &&
-                                    !is_expr<TGiven, TInjector, const arg<T, TExpected, TGiven>&>::value &&
+                __BOOST_DI_REQUIRES(aux::always<TMemory>::value && !is_expr<TGiven, TInjector, const arg<T>&>::value &&
                                     !is_expr<TGiven, TInjector>::value && aux::is_callable<TGiven>::value &&
                                     aux::is_callable<TExpected>::value) = 0>
       decltype(auto) get(const TMemory& = {}) const {
         return object_;
       }
       template <class TMemory = type_traits::heap,
-                __BOOST_DI_REQUIRES(aux::always<TMemory>::value &&
-                                    !is_expr<TGiven, TInjector, const arg<T, TExpected, TGiven>&>::value &&
+                __BOOST_DI_REQUIRES(aux::always<TMemory>::value && !is_expr<TGiven, TInjector, const arg<T>&>::value &&
                                     !is_expr<TGiven, TInjector>::value && aux::is_callable_with<TGiven>::value &&
                                     !aux::is_callable<TExpected>::value) = 0>
       decltype(auto) get(const TMemory& = {}) const {
@@ -1490,15 +1490,15 @@ struct external_expr {
       }
       template <class TMemory = type_traits::heap,
                 __BOOST_DI_REQUIRES(aux::always<TMemory>::value&& is_expr<TGiven, TInjector>::value &&
-                                    !is_expr<TGiven, TInjector, const arg<T, TExpected, TGiven>&>::value) = 0>
+                                    !is_expr<TGiven, TInjector, const arg<T>&>::value) = 0>
       decltype(auto) get(const TMemory& = {}) const {
         return object_(injector_);
       }
       template <class TMemory = type_traits::heap,
                 __BOOST_DI_REQUIRES(aux::always<TMemory>::value && !is_expr<TGiven, TInjector>::value &&
-                                    is_expr<TGiven, TInjector, const arg<T, TExpected, TGiven>&>::value) = 0>
+                                    is_expr<TGiven, TInjector, const arg<T>&>::value) = 0>
       decltype(auto) get(const TMemory& = {}) const {
-        return object_(injector_, arg<T, TExpected, TGiven>{});
+        return object_(injector_, arg<T>{});
       }
       const TInjector& injector_;
       const TGiven& object_;
