@@ -7,16 +7,15 @@
 #ifndef BOOST_DI_CORE_DEPENDENCY_HPP
 #define BOOST_DI_CORE_DEPENDENCY_HPP
 
+#include "boost/di/fwd.hpp"
 #include "boost/di/aux_/type_traits.hpp"
 #include "boost/di/aux_/utility.hpp"
+#include "boost/di/core/array.hpp"
 #include "boost/di/concepts/boundable.hpp"
 #include "boost/di/concepts/scopable.hpp"
-#include "boost/di/core/array.hpp"
-#include "boost/di/fwd.hpp"
 #include "boost/di/scopes/deduce.hpp"
-#include "boost/di/scopes/deduce_ext.hpp"
 #include "boost/di/scopes/external.hpp"
-#include "boost/di/scopes/detail/underlying.hpp"
+#include "boost/di/type_traits/external_traits.hpp"
 
 namespace core {
 
@@ -59,42 +58,42 @@ class dependency
   using externable = aux::integral_constant<bool, aux::always<T>::value && aux::is_same<TExpected, TGiven>::value>;
 
   template <class T>
-  struct ref_traits {
+  struct bind_traits {
     using type = T;
   };
 
   template <class R, class... Ts>
-  struct ref_traits<R (&)(Ts...)> {
+  struct bind_traits<R (&)(Ts...)> {
     using type = TExpected;
   };
 
   template <int N>
-  struct ref_traits<const char (&) [N]> {
+  struct bind_traits<const char (&) [N]> {
     using type = TExpected;
   };
 
   template <class T>
-  struct ref_traits<std::shared_ptr<T>&> {
+  struct bind_traits<std::shared_ptr<T>&> {
     using type = std::shared_ptr<TExpected>&;
   };
 
   template <class T>
-  struct ref_traits<std::shared_ptr<T>> {
+  struct bind_traits<std::shared_ptr<T>> {
     using type = std::shared_ptr<TExpected>;
   };
 
   template <class T, class>
-  struct deduce_traits {
+  struct implicit_bind_traits {
     using type = T;
   };
 
   template <class T>
-  struct deduce_traits<deduced, T> {
+  struct implicit_bind_traits<deduced, T> {
     using type = aux::decay_t<T>;
   };
 
   template <class T, class U>
-  using deduce_traits_t = typename deduce_traits<T, U>::type;
+  using implicit_bind_traits_t = typename implicit_bind_traits<T, U>::type;
 
  public:
   using scope = TScope;
@@ -140,41 +139,17 @@ class dependency
             __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
-    using dependency = dependency<scopes::detail::underlying<std::initializer_list<T>, scopes::deduce_ext>, array<type>, std::initializer_list<T>, TName, TPriority>;
+    using dependency = dependency<scopes::external<std::initializer_list<T>, scopes::unique>, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
 
-  template<class Scope, class T>
-  struct get_scope {
-    using type = Scope;
-  };
-
-  template<class T>
-  struct get_scope<scopes::deduce, T> {
-    using type = scopes::deduce_ext;
-  };
-
-  template<class T>
-  struct get_scope<scopes::singleton, T> {
-    using type = scopes::singleton_non_shared;
-  };
-
-  template<class T>
-  struct get_scope<scopes::singleton, std::shared_ptr<T>> {
-    using type = scopes::singleton_shared;
-  };
-
-  template<class T>
-  struct get_scope<scopes::singleton, std::shared_ptr<T>&> {
-    using type = scopes::singleton_shared;
-  };
-
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
-            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
+            __BOOST_DI_REQUIRES_MSG(concepts::boundable<implicit_bind_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
+    using type = typename bind_traits<T>::type;
     using dependency =
-        dependency<scopes::detail::underlying<typename ref_traits<T>::type
-        , typename get_scope<TScope, T>::type>, deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+        dependency<scopes::external<type
+        , type_traits::external_traits_t<TScope, type>>, implicit_bind_traits_t<TExpected, T>, type, TName, TPriority>;
     return dependency{object};
   }
 

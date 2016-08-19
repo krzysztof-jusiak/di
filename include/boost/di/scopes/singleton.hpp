@@ -64,6 +64,7 @@ struct singleton_shared {
   };
 };
 
+//TOOD template<template<class>>
 class singleton {
  public:
   template <class _, class T, class = aux::has_shared_ptr<T>>

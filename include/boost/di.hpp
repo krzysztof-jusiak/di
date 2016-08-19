@@ -266,12 +266,11 @@ class dependency;
 }
 namespace scopes {
 class deduce;
-class external;
+template <class, class>
+struct external;
 class singleton;
 class unique;
 namespace detail {
-template <class, class>
-struct underlying;
 struct expose;
 }
 }
@@ -598,6 +597,186 @@ struct function_traits<R (T::*)(TArgs...) const> {
 template <class T>
 using function_traits_t = typename function_traits<T>::args;
 }
+#if !defined(BOOST_DI_CFG_CTOR_LIMIT_SIZE)
+#define BOOST_DI_CFG_CTOR_LIMIT_SIZE 10
+#endif
+namespace type_traits {
+template <class, class = int>
+struct is_injectable : ::boost::di::v1_0_1::aux::false_type {};
+template <class T>
+struct is_injectable<T, ::boost::di::v1_0_1::aux::valid_t<typename T::boost_di_inject__>>
+    : ::boost::di::v1_0_1::aux::true_type {};
+struct direct {};
+struct uniform {};
+template <class T, int>
+using get = T;
+template <template <class...> class, class, class, class = int>
+struct ctor_impl;
+template <template <class...> class TIsConstructible, class T>
+struct ctor_impl<TIsConstructible, T, aux::index_sequence<>> : aux::type_list<> {};
+template <template <class...> class TIsConstructible, class T>
+struct ctor_impl<TIsConstructible, T, aux::index_sequence<0>,
+                 __BOOST_DI_REQUIRES(TIsConstructible<T, core::any_type_1st_fwd<T>>::value)>
+    : aux::type_list<core::any_type_1st_fwd<T>> {};
+template <template <class...> class TIsConstructible, class T>
+struct ctor_impl<TIsConstructible, T, aux::index_sequence<0>,
+                 __BOOST_DI_REQUIRES(!TIsConstructible<T, core::any_type_1st_fwd<T>>::value)>
+    : aux::conditional_t<TIsConstructible<T, core::any_type_1st_ref_fwd<T>>::value,
+                         aux::type_list<core::any_type_1st_ref_fwd<T>>, aux::type_list<>> {};
+template <template <class...> class TIsConstructible, class T, int... Ns>
+struct ctor_impl<TIsConstructible, T, aux::index_sequence<Ns...>,
+                 __BOOST_DI_REQUIRES((sizeof...(Ns) > 1) && TIsConstructible<T, get<core::any_type_fwd<T>, Ns>...>::value)>
+    : aux::type_list<get<core::any_type_fwd<T>, Ns>...> {};
+template <template <class...> class TIsConstructible, class T, int... Ns>
+struct ctor_impl<TIsConstructible, T, aux::index_sequence<Ns...>,
+                 __BOOST_DI_REQUIRES((sizeof...(Ns) > 1) && !TIsConstructible<T, get<core::any_type_fwd<T>, Ns>...>::value)>
+    : aux::conditional<TIsConstructible<T, get<core::any_type_ref_fwd<T>, Ns>...>::value,
+                       aux::type_list<get<core::any_type_ref_fwd<T>, Ns>...>,
+                       typename ctor_impl<TIsConstructible, T, aux::make_index_sequence<sizeof...(Ns)-1>>::type> {};
+template <template <class...> class TIsConstructible, class T>
+using ctor_impl_t = typename ctor_impl<TIsConstructible, T, aux::make_index_sequence<BOOST_DI_CFG_CTOR_LIMIT_SIZE>>::type;
+template <class...>
+struct ctor;
+template <class T>
+struct ctor<T, aux::type_list<>> : aux::pair<uniform, ctor_impl_t<aux::is_braces_constructible, T>> {};
+template <class T, class... TArgs>
+struct ctor<T, aux::type_list<TArgs...>> : aux::pair<direct, aux::type_list<TArgs...>> {};
+template <class T, class = void, class = typename is_injectable<T>::type>
+struct ctor_traits__;
+template <class T, class, class = typename is_injectable<ctor_traits<T>>::type>
+struct ctor_traits_impl;
+template <class T, class _>
+struct ctor_traits__<T, _, aux::true_type> : aux::pair<T, aux::pair<direct, typename T::boost_di_inject__::type>> {};
+template <class T, class _>
+struct ctor_traits__<T, _, aux::false_type> : ctor_traits_impl<T, _> {};
+template <class T, class _>
+struct ctor_traits_impl<T, _, aux::true_type>
+    : aux::pair<T, aux::pair<direct, typename ctor_traits<T>::boost_di_inject__::type>> {};
+template <class T, class _>
+struct ctor_traits_impl<T, _, aux::false_type> : aux::pair<T, typename ctor_traits<T>::type> {};
+}
+template <class T, class>
+struct ctor_traits : type_traits::ctor<T, type_traits::ctor_impl_t<aux::is_constructible, T>> {};
+template <class T>
+struct ctor_traits<std::initializer_list<T>> {
+  using boost_di_inject__ = aux::type_list<>;
+};
+template <class... Ts>
+struct ctor_traits<std::tuple<Ts...>> {
+  using boost_di_inject__ = aux::type_list<Ts...>;
+};
+template <class T>
+struct ctor_traits<T, __BOOST_DI_REQUIRES(aux::is_same<std::char_traits<char>, typename T::traits_type>::value)> {
+  using boost_di_inject__ = aux::type_list<>;
+};
+template <class T>
+struct ctor_traits<T, __BOOST_DI_REQUIRES(!aux::is_class<T>::value)> {
+  using boost_di_inject__ = aux::type_list<>;
+};
+namespace type_traits {
+template <class T>
+struct remove_named {
+  using type = T;
+};
+template <class TName, class T>
+struct remove_named<named<TName, T>> {
+  using type = T;
+};
+template <class T>
+using remove_named_t = typename remove_named<T>::type;
+template <class T>
+struct add_named {
+  using type = named<no_name, T>;
+};
+template <class TName, class T>
+struct add_named<named<TName, T>> {
+  using type = named<TName, T>;
+};
+template <class T>
+using add_named_t = typename add_named<T>::type;
+template <class T>
+struct named_decay {
+  using type = aux::decay_t<T>;
+};
+template <class TName, class T>
+struct named_decay<named<TName, T>> {
+  using type = named<TName, aux::decay_t<T>>;
+};
+template <class T>
+using named_decay_t = typename named_decay<T>::type;
+}
+namespace type_traits {
+template <class, class T>
+struct rebind_traits {
+  using type = T;
+};
+template <class T, class TName, class _>
+struct rebind_traits<T, named<TName, _>> {
+  using type = named<TName, T>;
+};
+template <class T, class D, class U>
+struct rebind_traits<std::unique_ptr<T, D>, U> {
+  using type = std::unique_ptr<U, D>;
+};
+template <class T, class D, class TName, class _>
+struct rebind_traits<std::unique_ptr<T, D>, named<TName, _>> {
+  using type = named<TName, std::unique_ptr<T, D>>;
+};
+template <class T, class U>
+struct rebind_traits<std::shared_ptr<T>, U> {
+  using type = std::shared_ptr<U>;
+};
+template <class T, class TName, class _>
+struct rebind_traits<std::shared_ptr<T>, named<TName, _>> {
+  using type = named<TName, std::shared_ptr<T>>;
+};
+template <class T, class U>
+struct rebind_traits<std::weak_ptr<T>, U> {
+  using type = std::weak_ptr<U>;
+};
+template <class T, class TName, class _>
+struct rebind_traits<std::weak_ptr<T>, named<TName, _>> {
+  using type = named<TName, std::weak_ptr<T>>;
+};
+template <class T, class U>
+struct rebind_traits<boost::shared_ptr<T>, U> {
+  using type = boost::shared_ptr<U>;
+};
+template <class T, class TName, class _>
+struct rebind_traits<boost::shared_ptr<T>, named<TName, _>> {
+  using type = named<TName, boost::shared_ptr<T>>;
+};
+template <class T, class U>
+using rebind_traits_t = typename rebind_traits<T, U>::type;
+}
+namespace core {
+template <class T, class... Ts>
+struct array_impl {
+  using boost_di_inject__ = aux::type_list<Ts...>;
+  explicit array_impl(type_traits::remove_named_t<Ts>&&... args)
+      : array{static_cast<type_traits::remove_named_t<Ts>&&>(args)...} {}
+  T array[sizeof...(Ts)];
+};
+template <class T, class... Ts>
+struct array<T(), Ts...> : T {
+  using value_type = typename T::value_type;
+  using array_t = array_impl<value_type, type_traits::rebind_traits_t<value_type, Ts>...>;
+  using boost_di_inject__ = aux::type_list<array_t&&>;
+  template <__BOOST_DI_REQUIRES(
+                aux::is_constructible<T, std::move_iterator<value_type*>, std::move_iterator<value_type*>>::value) = 0>
+  explicit array(array_t&& a)
+      : T(std::move_iterator<value_type*>(a.array), std::move_iterator<value_type*>(a.array + sizeof...(Ts))) {}
+};
+template <class T>
+struct array<T()> : T {
+  using boost_di_inject__ = aux::type_list<>;
+};
+}
+namespace type_traits {
+template <class _, class T, class... Ts>
+struct ctor_traits__<core::array<_, Ts...>, T, aux::false_type>
+    : type_traits::ctor_traits__<core::array<aux::remove_smart_ptr_t<aux::remove_qualifiers_t<T>>(), Ts...>> {};
+}
 namespace core {
 template <class T, class = typename aux::is_a<injector_base, T>::type>
 struct bindings_impl;
@@ -823,186 +1002,6 @@ struct scopable__ {
 };
 template <class T>
 using scopable = typename scopable__<T>::type;
-}
-#if !defined(BOOST_DI_CFG_CTOR_LIMIT_SIZE)
-#define BOOST_DI_CFG_CTOR_LIMIT_SIZE 10
-#endif
-namespace type_traits {
-template <class, class = int>
-struct is_injectable : ::boost::di::v1_0_1::aux::false_type {};
-template <class T>
-struct is_injectable<T, ::boost::di::v1_0_1::aux::valid_t<typename T::boost_di_inject__>>
-    : ::boost::di::v1_0_1::aux::true_type {};
-struct direct {};
-struct uniform {};
-template <class T, int>
-using get = T;
-template <template <class...> class, class, class, class = int>
-struct ctor_impl;
-template <template <class...> class TIsConstructible, class T>
-struct ctor_impl<TIsConstructible, T, aux::index_sequence<>> : aux::type_list<> {};
-template <template <class...> class TIsConstructible, class T>
-struct ctor_impl<TIsConstructible, T, aux::index_sequence<0>,
-                 __BOOST_DI_REQUIRES(TIsConstructible<T, core::any_type_1st_fwd<T>>::value)>
-    : aux::type_list<core::any_type_1st_fwd<T>> {};
-template <template <class...> class TIsConstructible, class T>
-struct ctor_impl<TIsConstructible, T, aux::index_sequence<0>,
-                 __BOOST_DI_REQUIRES(!TIsConstructible<T, core::any_type_1st_fwd<T>>::value)>
-    : aux::conditional_t<TIsConstructible<T, core::any_type_1st_ref_fwd<T>>::value,
-                         aux::type_list<core::any_type_1st_ref_fwd<T>>, aux::type_list<>> {};
-template <template <class...> class TIsConstructible, class T, int... Ns>
-struct ctor_impl<TIsConstructible, T, aux::index_sequence<Ns...>,
-                 __BOOST_DI_REQUIRES((sizeof...(Ns) > 1) && TIsConstructible<T, get<core::any_type_fwd<T>, Ns>...>::value)>
-    : aux::type_list<get<core::any_type_fwd<T>, Ns>...> {};
-template <template <class...> class TIsConstructible, class T, int... Ns>
-struct ctor_impl<TIsConstructible, T, aux::index_sequence<Ns...>,
-                 __BOOST_DI_REQUIRES((sizeof...(Ns) > 1) && !TIsConstructible<T, get<core::any_type_fwd<T>, Ns>...>::value)>
-    : aux::conditional<TIsConstructible<T, get<core::any_type_ref_fwd<T>, Ns>...>::value,
-                       aux::type_list<get<core::any_type_ref_fwd<T>, Ns>...>,
-                       typename ctor_impl<TIsConstructible, T, aux::make_index_sequence<sizeof...(Ns)-1>>::type> {};
-template <template <class...> class TIsConstructible, class T>
-using ctor_impl_t = typename ctor_impl<TIsConstructible, T, aux::make_index_sequence<BOOST_DI_CFG_CTOR_LIMIT_SIZE>>::type;
-template <class...>
-struct ctor;
-template <class T>
-struct ctor<T, aux::type_list<>> : aux::pair<uniform, ctor_impl_t<aux::is_braces_constructible, T>> {};
-template <class T, class... TArgs>
-struct ctor<T, aux::type_list<TArgs...>> : aux::pair<direct, aux::type_list<TArgs...>> {};
-template <class T, class = void, class = typename is_injectable<T>::type>
-struct ctor_traits__;
-template <class T, class, class = typename is_injectable<ctor_traits<T>>::type>
-struct ctor_traits_impl;
-template <class T, class _>
-struct ctor_traits__<T, _, aux::true_type> : aux::pair<T, aux::pair<direct, typename T::boost_di_inject__::type>> {};
-template <class T, class _>
-struct ctor_traits__<T, _, aux::false_type> : ctor_traits_impl<T, _> {};
-template <class T, class _>
-struct ctor_traits_impl<T, _, aux::true_type>
-    : aux::pair<T, aux::pair<direct, typename ctor_traits<T>::boost_di_inject__::type>> {};
-template <class T, class _>
-struct ctor_traits_impl<T, _, aux::false_type> : aux::pair<T, typename ctor_traits<T>::type> {};
-}
-template <class T, class>
-struct ctor_traits : type_traits::ctor<T, type_traits::ctor_impl_t<aux::is_constructible, T>> {};
-template <class T>
-struct ctor_traits<std::initializer_list<T>> {
-  using boost_di_inject__ = aux::type_list<>;
-};
-template <class... Ts>
-struct ctor_traits<std::tuple<Ts...>> {
-  using boost_di_inject__ = aux::type_list<Ts...>;
-};
-template <class T>
-struct ctor_traits<T, __BOOST_DI_REQUIRES(aux::is_same<std::char_traits<char>, typename T::traits_type>::value)> {
-  using boost_di_inject__ = aux::type_list<>;
-};
-template <class T>
-struct ctor_traits<T, __BOOST_DI_REQUIRES(!aux::is_class<T>::value)> {
-  using boost_di_inject__ = aux::type_list<>;
-};
-namespace type_traits {
-template <class T>
-struct remove_named {
-  using type = T;
-};
-template <class TName, class T>
-struct remove_named<named<TName, T>> {
-  using type = T;
-};
-template <class T>
-using remove_named_t = typename remove_named<T>::type;
-template <class T>
-struct add_named {
-  using type = named<no_name, T>;
-};
-template <class TName, class T>
-struct add_named<named<TName, T>> {
-  using type = named<TName, T>;
-};
-template <class T>
-using add_named_t = typename add_named<T>::type;
-template <class T>
-struct named_decay {
-  using type = aux::decay_t<T>;
-};
-template <class TName, class T>
-struct named_decay<named<TName, T>> {
-  using type = named<TName, aux::decay_t<T>>;
-};
-template <class T>
-using named_decay_t = typename named_decay<T>::type;
-}
-namespace type_traits {
-template <class, class T>
-struct rebind_traits {
-  using type = T;
-};
-template <class T, class TName, class _>
-struct rebind_traits<T, named<TName, _>> {
-  using type = named<TName, T>;
-};
-template <class T, class D, class U>
-struct rebind_traits<std::unique_ptr<T, D>, U> {
-  using type = std::unique_ptr<U, D>;
-};
-template <class T, class D, class TName, class _>
-struct rebind_traits<std::unique_ptr<T, D>, named<TName, _>> {
-  using type = named<TName, std::unique_ptr<T, D>>;
-};
-template <class T, class U>
-struct rebind_traits<std::shared_ptr<T>, U> {
-  using type = std::shared_ptr<U>;
-};
-template <class T, class TName, class _>
-struct rebind_traits<std::shared_ptr<T>, named<TName, _>> {
-  using type = named<TName, std::shared_ptr<T>>;
-};
-template <class T, class U>
-struct rebind_traits<std::weak_ptr<T>, U> {
-  using type = std::weak_ptr<U>;
-};
-template <class T, class TName, class _>
-struct rebind_traits<std::weak_ptr<T>, named<TName, _>> {
-  using type = named<TName, std::weak_ptr<T>>;
-};
-template <class T, class U>
-struct rebind_traits<boost::shared_ptr<T>, U> {
-  using type = boost::shared_ptr<U>;
-};
-template <class T, class TName, class _>
-struct rebind_traits<boost::shared_ptr<T>, named<TName, _>> {
-  using type = named<TName, boost::shared_ptr<T>>;
-};
-template <class T, class U>
-using rebind_traits_t = typename rebind_traits<T, U>::type;
-}
-namespace core {
-template <class T, class... Ts>
-struct array_impl {
-  using boost_di_inject__ = aux::type_list<Ts...>;
-  explicit array_impl(type_traits::remove_named_t<Ts>&&... args)
-      : array{static_cast<type_traits::remove_named_t<Ts>&&>(args)...} {}
-  T array[sizeof...(Ts)];
-};
-template <class T, class... Ts>
-struct array<T(), Ts...> : T {
-  using value_type = typename T::value_type;
-  using array_t = array_impl<value_type, type_traits::rebind_traits_t<value_type, Ts>...>;
-  using boost_di_inject__ = aux::type_list<array_t&&>;
-  template <__BOOST_DI_REQUIRES(
-                aux::is_constructible<T, std::move_iterator<value_type*>, std::move_iterator<value_type*>>::value) = 0>
-  explicit array(array_t&& a)
-      : T(std::move_iterator<value_type*>(a.array), std::move_iterator<value_type*>(a.array + sizeof...(Ts))) {}
-};
-template <class T>
-struct array<T()> : T {
-  using boost_di_inject__ = aux::type_list<>;
-};
-}
-namespace type_traits {
-template <class _, class T, class... Ts>
-struct ctor_traits__<core::array<_, Ts...>, T, aux::false_type>
-    : type_traits::ctor_traits__<core::array<aux::remove_smart_ptr_t<aux::remove_qualifiers_t<T>>(), Ts...>> {};
 }
 namespace wrappers {
 template <class TScope, class T, class TObject = std::shared_ptr<T>>
@@ -1263,20 +1262,8 @@ struct scoped {
     // clang-format on
   };
 };
-template <class T>
-struct scoped<scopes::external, T> {
-  template <class To>
-  struct is_not_convertible_to {
-    operator To() const {
-      using constraint_not_satisfied = is_not_convertible_to;
-      return constraint_not_satisfied{}.error();
-    }
-    // clang-format off
-    static inline To
- error(_ = "external is not convertible to the requested type, verify binding: 'di::bind<T>.to(value)'?");
-    // clang-format on
-  };
-};
+// clang-format off
+// clang-format on
 template <class T>
 struct type {
   struct has_ambiguous_number_of_constructor_parameters {
@@ -1388,7 +1375,6 @@ template <class T, class TWrapper>
 using wrapper = wrapper_impl<T, TWrapper>;
 }
 namespace scopes {
-namespace detail {
 template <class T, class TExpected, class TGiven>
 struct arg {
   using type = T;
@@ -1431,7 +1417,7 @@ struct is_expr
     : aux::integral_constant<bool, aux::is_callable_with<TGiven, TInjector, Ts...>::value && !has_result_type<TGiven>::value> {
 };
 template <class U, class TScope>
-struct underlying {
+struct external {
   template <class TExpected, class TGiven, class = int>
   class scope {
    public:
@@ -1452,8 +1438,6 @@ struct underlying {
     static decltype(typename TScope::template scope<TExpected, TGiven>{}.template try_create<T, TName>(
         aux::declval<provider<typename TProvider::injector_t>>()))
     try_create(const TProvider&);
-    template <class>
-    struct q;
     template <class T, class TName, class TProvider>
     auto create(const TProvider& pr) {
       using scope = typename TScope::template scope<TExpected, TGiven>;
@@ -1475,7 +1459,7 @@ struct underlying {
       using injector_t = TInjector;
       template <class TMemory = type_traits::heap,
                 __BOOST_DI_REQUIRES(aux::always<TMemory>::value &&
-                                    !detail::is_expr<TGiven, TInjector, const detail::arg<T, TExpected, TGiven>&>::value &&
+                                    !is_expr<TGiven, TInjector, const arg<T, TExpected, TGiven>&>::value &&
                                     !is_expr<TGiven, TInjector>::value && aux::is_callable<TGiven>::value &&
                                     aux::is_callable<TExpected>::value) = 0>
       decltype(auto) get(const TMemory& = {}) const {
@@ -1483,7 +1467,7 @@ struct underlying {
       }
       template <class TMemory = type_traits::heap,
                 __BOOST_DI_REQUIRES(aux::always<TMemory>::value &&
-                                    !detail::is_expr<TGiven, TInjector, const detail::arg<T, TExpected, TGiven>&>::value &&
+                                    !is_expr<TGiven, TInjector, const arg<T, TExpected, TGiven>&>::value &&
                                     !is_expr<TGiven, TInjector>::value && aux::is_callable_with<TGiven>::value &&
                                     !aux::is_callable<TExpected>::value) = 0>
       decltype(auto) get(const TMemory& = {}) const {
@@ -1536,47 +1520,38 @@ struct underlying {
   };
 };
 }
-}
 namespace type_traits {
+template <class TScope, class>
+struct external_traits {
+  using type = TScope;
+};
 template <class T>
-struct scope_traits_ext {
+struct external_traits<scopes::deduce, T> {
   using type = scopes::unique;
 };
 template <class T>
-struct scope_traits_ext<std::shared_ptr<T>> {
+struct external_traits<scopes::deduce, std::shared_ptr<T>> {
   using type = scopes::singleton_shared;
 };
 template <class T>
-struct scope_traits_ext<T&> {
-  using type = scopes::detail::EXTERNAL;
+struct external_traits<scopes::deduce, T&> {
+  using type = scopes::EXTERNAL;
 };
 template <class T>
-using scope_traits_ext_t = typename scope_traits_ext<T>::type;
-}
-namespace scopes {
-class deduce_ext {
- public:
-  template <class TExpected, class TGiven>
-  class scope {
-   public:
-    template <class T, class TInjector>
-    using is_referable =
-        typename type_traits::scope_traits_ext_t<TGiven>::template scope<TExpected, TGiven>::template is_referable<TGiven,
-                                                                                                                   TInjector>;
-    template <class T, class TName, class TProvider>
-    static decltype(typename type_traits::scope_traits_ext_t<TGiven>::template scope<TExpected, TGiven>{}
-                        .template try_create<TGiven, TName>(aux::declval<TProvider>()))
-    try_create(const TProvider&);
-    template <class T, class TName, class TProvider>
-    auto create(const TProvider& provider) {
-      using scope_traits = type_traits::scope_traits_ext_t<TGiven>;
-      using scope = typename scope_traits::template scope<TExpected, TGiven>;
-      return scope{}.template create<T, TName>(provider);
-    }
-  };
+struct external_traits<scopes::singleton, T> {
+  using type = scopes::singleton_non_shared;
 };
+template <class T>
+struct external_traits<scopes::singleton, std::shared_ptr<T>> {
+  using type = scopes::singleton_shared;
+};
+template <class T>
+struct external_traits<scopes::singleton, std::shared_ptr<T>&> {
+  using type = scopes::singleton_shared;
+};
+template <class TScope, class T>
+using external_traits_t = typename external_traits<TScope, T>::type;
 }
-namespace scopes {}
 namespace core {
 template <class, class>
 struct dependency_concept {};
@@ -1608,35 +1583,35 @@ class dependency
   template <class T>
   using externable = aux::integral_constant<bool, aux::always<T>::value && aux::is_same<TExpected, TGiven>::value>;
   template <class T>
-  struct ref_traits {
+  struct bind_traits {
     using type = T;
   };
   template <class R, class... Ts>
-  struct ref_traits<R (&)(Ts...)> {
+  struct bind_traits<R (&)(Ts...)> {
     using type = TExpected;
   };
   template <int N>
-  struct ref_traits<const char (&)[N]> {
+  struct bind_traits<const char (&)[N]> {
     using type = TExpected;
   };
   template <class T>
-  struct ref_traits<std::shared_ptr<T>&> {
+  struct bind_traits<std::shared_ptr<T>&> {
     using type = std::shared_ptr<TExpected>&;
   };
   template <class T>
-  struct ref_traits<std::shared_ptr<T>> {
+  struct bind_traits<std::shared_ptr<T>> {
     using type = std::shared_ptr<TExpected>;
   };
   template <class T, class>
-  struct deduce_traits {
+  struct implicit_bind_traits {
     using type = T;
   };
   template <class T>
-  struct deduce_traits<deduced, T> {
+  struct implicit_bind_traits<deduced, T> {
     using type = aux::decay_t<T>;
   };
   template <class T, class U>
-  using deduce_traits_t = typename deduce_traits<T, U>::type;
+  using implicit_bind_traits_t = typename implicit_bind_traits<T, U>::type;
 
  public:
   using scope = TScope;
@@ -1674,35 +1649,17 @@ class dependency
             __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
   auto to(std::initializer_list<T>&& object) noexcept {
     using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
-    using dependency = dependency<scopes::detail::underlying<std::initializer_list<T>, scopes::deduce_ext>, array<type>,
+    using dependency = dependency<scopes::external<std::initializer_list<T>, scopes::unique>, array<type>,
                                   std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
-  template <class Scope, class T>
-  struct get_scope {
-    using type = Scope;
-  };
-  template <class T>
-  struct get_scope<scopes::deduce, T> {
-    using type = scopes::deduce_ext;
-  };
-  template <class T>
-  struct get_scope<scopes::singleton, T> {
-    using type = scopes::singleton_non_shared;
-  };
-  template <class T>
-  struct get_scope<scopes::singleton, std::shared_ptr<T>> {
-    using type = scopes::singleton_shared;
-  };
-  template <class T>
-  struct get_scope<scopes::singleton, std::shared_ptr<T>&> {
-    using type = scopes::singleton_shared;
-  };
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
-            __BOOST_DI_REQUIRES_MSG(concepts::boundable<deduce_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
+  template <
+      class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
+      __BOOST_DI_REQUIRES_MSG(concepts::boundable<implicit_bind_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
-    using dependency = dependency<scopes::detail::underlying<typename ref_traits<T>::type, typename get_scope<TScope, T>::type>,
-                                  deduce_traits_t<TExpected, T>, typename ref_traits<T>::type, TName, TPriority>;
+    using type = typename bind_traits<T>::type;
+    using dependency = dependency<scopes::external<type, type_traits::external_traits_t<TScope, type>>,
+                                  implicit_bind_traits_t<TExpected, T>, type, TName, TPriority>;
     return dependency{object};
   }
   template <class...>

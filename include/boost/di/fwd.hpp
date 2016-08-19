@@ -67,12 +67,11 @@ class dependency;
 
 namespace scopes {
 class deduce;
-class external;
+template<class, class> struct external;
 class singleton;
 class unique;
 
 namespace detail {
-template<class, class> struct underlying;
 struct expose;
 }
 }  // scopes

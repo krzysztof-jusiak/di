@@ -210,7 +210,7 @@ test ctor_refs = [] {
   };
 
   test(di::aux::type<c>{}, di::bind<i1>().to<impl1>());
- test(di::aux::type<c_inject>{}, di::bind<i1>().to<impl1>());
+  test(di::aux::type<c_inject>{}, di::bind<i1>().to<impl1>());
 #if !defined(__MSVC__)
   test(di::aux::type<c_aggregate>{}, di::bind<i1>().to<impl1>());
 #endif

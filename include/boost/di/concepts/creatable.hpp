@@ -62,21 +62,21 @@ struct scoped {
   };
 };
 
-template <class T>
-struct scoped<scopes::external, T> {
-  template <class To>
-  struct is_not_convertible_to {
-    operator To() const {
-      using constraint_not_satisfied = is_not_convertible_to;
-      return constraint_not_satisfied{}.error();
-    }
+/*template <class T>*/
+//struct scoped<scopes::external, T> {
+  //template <class To>
+  //struct is_not_convertible_to {
+    //operator To() const {
+      //using constraint_not_satisfied = is_not_convertible_to;
+      //return constraint_not_satisfied{}.error();
+    //}
 
-    // clang-format off
-    static inline To
-	error(_ = "external is not convertible to the requested type, verify binding: 'di::bind<T>.to(value)'?");
-    // clang-format on
-  };
-};
+    //// clang-format off
+    //static inline To
+	//error(_ = "external is not convertible to the requested type, verify binding: 'di::bind<T>.to(value)'?");
+    //// clang-format on
+  //};
+/*};*/
 
 template <class T>
 struct type {
