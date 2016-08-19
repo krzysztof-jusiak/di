@@ -462,7 +462,7 @@ test dynamic_binding_expose_ref = [] {
 
 test dynamic_binding_using_polymorphic_lambdas_with_dependend_interfaces = [] {
   auto test = [&](bool debug_property) {
-    auto injector = make_injector(di::bind<i1>().to([&](const auto &injector) -> std::shared_ptr<i1> {
+    auto injector = make_injector(di::bind<i1>().in(di::unique).to([&](const auto &injector) -> std::shared_ptr<i1> {
       if (debug_property) {
         return std::make_shared<impl1>();
       }
@@ -520,7 +520,7 @@ test runtime_factory_impl = [] {
   constexpr auto i = 42;
 
   auto test = [&](bool debug_property) {
-    auto injector = make_injector(di::bind<int>().to(i), di::bind<i1>().to([&](const auto &injector) -> std::shared_ptr<i1> {
+    auto injector = make_injector(di::bind<int>().to(i), di::bind<i1>().in(di::unique).to([&](const auto &injector) -> std::shared_ptr<i1> {
       if (debug_property) {
         return std::make_shared<impl1>();
       }
@@ -560,8 +560,7 @@ test runtime_factory_call_operator_impl = [] {
   constexpr auto i = 42;
 
   auto test = [&](bool debug_property) {
-    auto injector = make_injector(di::bind<int>().to(i), di::bind<i1>().to(call_operator{debug_property}));
-
+    auto injector = make_injector(di::bind<int>().to(i), di::bind<i1>().in(di::unique).to(call_operator{debug_property}));
     return injector.create<std::shared_ptr<i1>>();
   };
 

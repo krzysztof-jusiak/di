@@ -8,10 +8,6 @@
 
 #include "boost/di/fwd.hpp"
 #include "boost/di/fwd_ext.hpp"
-#include "boost/di/scopes/external.hpp"
-#include "boost/di/scopes/unique.hpp"
-#include "boost/di/scopes/deduce.hpp"
-#include "boost/di/scopes/singleton.hpp"
 
 namespace type_traits {
 
@@ -38,6 +34,11 @@ struct external_traits<scopes::deduce, T&> {
 template<class T>
 struct external_traits<scopes::singleton, T> {
   using type = scopes::singleton_non_shared;
+};
+
+template<class T, class TDeleter>
+struct external_traits<scopes::singleton, std::unique_ptr<T, TDeleter>> {
+  using type = scopes::singleton_shared;
 };
 
 template<class T>

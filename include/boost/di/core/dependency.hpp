@@ -135,21 +135,27 @@ class dependency
     return dependency<TScope, array<type>, array<type, Ts...>, TName, TPriority>{};
   }
 
-  template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,
-            __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
-  auto to(std::initializer_list<T>&& object) noexcept {
-    using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
-    using dependency = dependency<scopes::external<std::initializer_list<T>, scopes::unique>, array<type>, std::initializer_list<T>, TName, TPriority>;
-    return dependency{object};
-  }
-
-  template <class T, __BOOST_DI_REQUIRES(externable<T>::value) = 0,
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && !aux::is_callable<T>::value) = 0,
             __BOOST_DI_REQUIRES_MSG(concepts::boundable<implicit_bind_traits_t<TExpected, T>, aux::decay_t<T>, aux::valid<>>) = 0>
   auto to(T&& object) noexcept {
     using type = typename bind_traits<T>::type;
     using dependency =
         dependency<scopes::external<type
         , type_traits::external_traits_t<TScope, type>>, implicit_bind_traits_t<TExpected, T>, type, TName, TPriority>;
+    return dependency{object};
+  }
+
+  template <class T, __BOOST_DI_REQUIRES(externable<T>::value && aux::is_callable<T>::value) = 0>
+  auto to(const T& object) noexcept {
+    using dependency = dependency<scopes::external_call<T, TScope>, implicit_bind_traits_t<TExpected, T>, T, TName, TPriority>;
+    return dependency{object};
+  }
+
+ template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,
+            __BOOST_DI_REQUIRES(aux::always<T>::value&& aux::is_same<TScope, scopes::deduce>::value) = 0>
+  auto to(std::initializer_list<T>&& object) noexcept {
+    using type = aux::remove_pointer_t<aux::remove_extent_t<TExpected>>;
+    using dependency = dependency<scopes::external<std::initializer_list<T>, scopes::unique>, array<type>, std::initializer_list<T>, TName, TPriority>;
     return dependency{object};
   }
 
