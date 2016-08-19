@@ -68,8 +68,8 @@ class dependency;
 namespace scopes {
 class deduce;
 template<class, class> struct external;
-template<class, class> struct external_call;
-struct EXTERNAL;
+template<class, class> struct external_expr;
+class external_ref;
 class singleton;
 class unique;
 

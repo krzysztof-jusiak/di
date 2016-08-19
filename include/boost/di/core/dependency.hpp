@@ -147,7 +147,7 @@ class dependency
 
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value && aux::is_callable<T>::value) = 0>
   auto to(const T& object) noexcept {
-    using dependency = dependency<scopes::external_call<T, TScope>, implicit_bind_traits_t<TExpected, T>, T, TName, TPriority>;
+    using dependency = dependency<scopes::external_expr<T, TScope>, implicit_bind_traits_t<TExpected, T>, T, TName, TPriority>;
     return dependency{object};
   }
 

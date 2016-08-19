@@ -43,24 +43,9 @@ __BOOST_DI_HAS_TYPE(has_result_type, result_type);
 template <class TGiven, class TInjector, class... Ts>
 struct is_expr : aux::integral_constant<bool, aux::is_callable_with<TGiven, TInjector, Ts...>::value && !has_result_type<TGiven>::value> {};
 
-struct EXTERNAL {
-  template<class, class>
-    struct scope {
-      template <class T, class TInjector>
-      using is_referable = aux::true_type;
-
-      template <class, class, class TProvider>
-      static auto try_create(const TProvider& p) -> wrapper_traits_t<decltype(p.get())>;
-
-      template <class, class, class TProvider>
-      auto create(const TProvider& p) {
-        return wrapper_traits_t<decltype(p.get())>{p.get()};
-      }
-    };
-};
-
 template <class U, class TScope>
-struct external {
+class external {
+public:
   template <class TExpected, class TGiven>
   class scope {
    public:
@@ -97,8 +82,24 @@ struct external {
   };
 };
 
+struct external_ref {
+  template<class, class>
+    struct scope {
+      template <class T, class TInjector>
+      using is_referable = aux::true_type;
+
+      template <class, class, class TProvider>
+      static auto try_create(const TProvider& p) -> wrapper_traits_t<decltype(p.get())>;
+
+      template <class, class, class TProvider>
+      auto create(const TProvider& p) {
+        return wrapper_traits_t<decltype(p.get())>{p.get()};
+      }
+    };
+};
+
 template <class U, class TScope>
-struct external_call {
+struct external_expr {
   template <class TExpected, class TGiven>
   struct scope {
     template <class, class>

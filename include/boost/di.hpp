@@ -269,8 +269,8 @@ class deduce;
 template <class, class>
 struct external;
 template <class, class>
-struct external_call;
-struct EXTERNAL;
+struct external_expr;
+class external_ref;
 class singleton;
 class unique;
 namespace detail {
@@ -1368,7 +1368,7 @@ struct external_traits<scopes::deduce, std::shared_ptr<T>> {
 };
 template <class T>
 struct external_traits<scopes::deduce, T&> {
-  using type = scopes::EXTERNAL;
+  using type = scopes::external_ref;
 };
 template <class T>
 struct external_traits<scopes::singleton, T> {
@@ -1418,21 +1418,9 @@ template <class TGiven, class TInjector, class... Ts>
 struct is_expr
     : aux::integral_constant<bool, aux::is_callable_with<TGiven, TInjector, Ts...>::value && !has_result_type<TGiven>::value> {
 };
-struct EXTERNAL {
-  template <class, class>
-  struct scope {
-    template <class T, class TInjector>
-    using is_referable = aux::true_type;
-    template <class, class, class TProvider>
-    static auto try_create(const TProvider& p) -> wrapper_traits_t<decltype(p.get())>;
-    template <class, class, class TProvider>
-    auto create(const TProvider& p) {
-      return wrapper_traits_t<decltype(p.get())>{p.get()};
-    }
-  };
-};
 template <class U, class TScope>
-struct external {
+class external {
+ public:
   template <class TExpected, class TGiven>
   class scope {
    public:
@@ -1461,8 +1449,21 @@ struct external {
     U object_;
   };
 };
+struct external_ref {
+  template <class, class>
+  struct scope {
+    template <class T, class TInjector>
+    using is_referable = aux::true_type;
+    template <class, class, class TProvider>
+    static auto try_create(const TProvider& p) -> wrapper_traits_t<decltype(p.get())>;
+    template <class, class, class TProvider>
+    auto create(const TProvider& p) {
+      return wrapper_traits_t<decltype(p.get())>{p.get()};
+    }
+  };
+};
 template <class U, class TScope>
-struct external_call {
+struct external_expr {
   template <class TExpected, class TGiven>
   struct scope {
     template <class, class>
@@ -1623,7 +1624,7 @@ class dependency
   }
   template <class T, __BOOST_DI_REQUIRES(externable<T>::value&& aux::is_callable<T>::value) = 0>
   auto to(const T& object) noexcept {
-    using dependency = dependency<scopes::external_call<T, TScope>, implicit_bind_traits_t<TExpected, T>, T, TName, TPriority>;
+    using dependency = dependency<scopes::external_expr<T, TScope>, implicit_bind_traits_t<TExpected, T>, T, TName, TPriority>;
     return dependency{object};
   }
   template <class T, __BOOST_DI_REQUIRES_MSG(concepts::boundable<TExpected, T>) = 0,

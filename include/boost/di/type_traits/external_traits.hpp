@@ -28,7 +28,7 @@ struct external_traits<scopes::deduce, std::shared_ptr<T>> {
 
 template<class T>
 struct external_traits<scopes::deduce, T&> {
-  using type = scopes::EXTERNAL;
+  using type = scopes::external_ref;
 };
 
 template<class T>
