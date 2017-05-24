@@ -1086,7 +1086,10 @@ class singleton {
    private:
     template <class T_, class TProvider>
     auto create_impl(const TProvider& provider) {
-      static std::shared_ptr<T_> object{provider.get()};
+      auto object = std::static_pointer_cast<T_>(provider.injector_->ptrs[__PRETTY_FUNCTION__]);
+      if (!object) {
+        provider.injector_->ptrs[__PRETTY_FUNCTION__] = std::shared_ptr<T_>{provider.get()};
+      }
       return wrappers::shared<singleton, T_, std::shared_ptr<T_>&>{object};
     }
   };
@@ -2541,6 +2544,9 @@ class injector : injector_base, pool<bindings_t<TDeps...>> {
     return successful::wrapper<create_t, wrapper_t>{
         static_cast<dependency__<dependency_t>&>(dependency).template create<T, TName>(provider_t{this})};
   }
+
+ public:
+  mutable std::unordered_map<std::string, std::shared_ptr<void>> ptrs{};
 };
 template <class TConfig, class... TDeps>
 class injector<TConfig, pool<>, TDeps...> : injector_base, pool<bindings_t<TDeps...>> {
@@ -2731,6 +2737,9 @@ class injector<TConfig, pool<>, TDeps...> : injector_base, pool<bindings_t<TDeps
     return successful::wrapper<create_t, wrapper_t>{
         static_cast<dependency__<dependency_t>&>(dependency).template create<T, TName>(provider_t{this})};
   }
+
+ public:
+  mutable std::unordered_map<std::string, std::shared_ptr<void>> ptrs{};
 };
 }
 namespace detail {

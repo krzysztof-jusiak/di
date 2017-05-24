@@ -63,7 +63,10 @@ class singleton {
    private:
     template <class T_, class TProvider>
     auto create_impl(const TProvider& provider) {
-      static std::shared_ptr<T_> object{provider.get()};
+      auto object = std::static_pointer_cast<T_>(provider.injector_->ptrs[__PRETTY_FUNCTION__]);
+      if (!object) {
+        provider.injector_->ptrs[__PRETTY_FUNCTION__] = std::shared_ptr<T_>{provider.get()};
+      }
       return wrappers::shared<singleton, T_, std::shared_ptr<T_>&>{object};
     }
   };

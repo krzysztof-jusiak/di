@@ -310,6 +310,9 @@ class injector __BOOST_DI_CORE_INJECTOR_POLICY()(<TConfig, pool<>, TDeps...>) : 
     () return successful::wrapper<create_t, wrapper_t>{
         static_cast<dependency__<dependency_t>&>(dependency).template create<T, TName>(provider_t{this})};
   }
+
+ public:
+  mutable std::unordered_map<std::string, std::shared_ptr<void>> ptrs{};
 };
 
 #if defined(__BOOST_DI_INJECTOR_ITERATE)
