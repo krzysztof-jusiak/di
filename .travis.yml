@@ -15,6 +15,12 @@ sudo: false
 
 branches:
   except:
+    - gh-pages
+    - benchmarks
+
+matrix:
+  fast_finish: true
+  include:
 
 #
 # Documentation
