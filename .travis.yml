@@ -7,7 +7,6 @@
 env:
   global:
   - secure: "A27gNApbElRr3fqZXifVPKkB+xbxMYDFINGk2RDqul1X1Zg51M7e+ohHO9BwhEYiOGmCnFfbsVUP11XyFIH6kzWmxw9mhy8YDglbYfeyu6grxtU3mHElz8W7wO5OCPFPWXQf23sVYE8AWyjj6M+t3oyLJhPXCcYI7uMHEQm10CQ=" # GH_TOKEN
-  - secure: "F/LBl+hmRJv6kcDKX/N/e8RBJ5D/Non6V/pQawDIU0z+MQbz7fV6/358YVUwyf8Cm2qkyRO/jPWDBRfy/W9X0OlgAFrrTvRe6H2usf24WcU+4hO7u0gS99ca2HRggH7UkQ7GEnCraz65ThlJSEIUpE8+NnlFXpWY2ld4JMNkL44=" # COVERALLS_REPO_TOKEN
 
 git:
   depth: 1
@@ -193,14 +192,12 @@ script:
     && git push --force --quiet "https://${GH_TOKEN}@github.com/boost-experimental/di"); fi
 
 after_success:
-  - if [ "${TRAVIS_BRANCH}" == "cpp14" ] && [ "${BENCHMARK}" != "" ]; then (
-    git clone https://github.com/boost-experimental/di benchmarks
-    && cd benchmarks && git checkout -b benchmarks -t origin/benchmarks
-    && find ../build/test ../test -iname "*.json" | xargs -I% cp % . && git add -A . && git commit -am "update"
-    && git push --force --quiet "https://${GH_TOKEN}@github.com/boost-experimental/di"); fi
-  - if [ "${TRAVIS_BRANCH}" == "cpp14" ] && [ "${VARIANT}" == "coverage" ]; then (pip
-    install --user travis requests[security] cpp-coveralls && coveralls -r . -b test/ --gcov /usr/bin/${GCOV}
-    --repo-token "${COVERALLS_REPO_TOKEN}"); fi
+  - if [ "${BENCHMARK}" != "" ]; then (
+      git clone https://github.com/boost-experimental/di benchmarks
+      && cd benchmarks && git checkout -b benchmarks -t origin/benchmarks
+      && find ../build/test ../test -iname "*.json" | xargs -I% cp % . && git add -A . && git commit -am "update"
+      && git push --force --quiet "https://${GH_TOKEN}@github.com/boost-experimental/di"); fi
+  - if [ "${VARIANT}" == "coverage" ]; then (bash <(curl -s https://codecov.io/bash)); fi
 
 notifications:
   webhooks:
