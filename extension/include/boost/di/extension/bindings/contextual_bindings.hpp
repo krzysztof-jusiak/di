@@ -54,14 +54,14 @@ class contextual_bindings : public config {
         return;
       }
       auto& v = injector->template create<contexts_list&>();
-      using given = aux::decay_t<typename decltype(type)::type>;
-      std::string element;
+      std::string element{};
       if (!v.empty()) {
         element = v.back() + "->";
         auto& context = injector->template create<context_type&>();
         context.assign(v.back());
         v.pop_back();
       }
+      using given = aux::decay_t<value_type_t>;
       auto ctor_size = type_t::arity::value;
       while (ctor_size--) {
         v.push_back(element + get_type<given>());
