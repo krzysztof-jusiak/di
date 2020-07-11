@@ -62,6 +62,9 @@ struct example {
   more_data& md;
 };
 
+#if defined(__MSVC__)
+int main() {}
+#else
 int main() {
   // clang-format off
   auto injector = di::make_injector<di::extension::serializable_policy>(
@@ -98,7 +101,7 @@ int main() {
   }
 
   /*<<serialize internal data to the stream>>*/
-  std::stringstream str;
+  std::stringstream str{};
   di::extension::serialize(injector, str);
 
   /*<<reset internal data>>*/
@@ -118,3 +121,4 @@ int main() {
     assert(77 == object.md.s);
   }
 }
+#endif

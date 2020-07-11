@@ -18,23 +18,18 @@ BOOST_DI_NAMESPACE_BEGIN
 namespace extension {
 
 template <class T>
-auto get_type() {
-  std::string result;
-#if defined(_MSC_VER)
-  auto type = std::string{&__FUNCSIG__[22]};
-  const auto i = type[0] == ' ' ? 1 : 0;
-  result = type.substr(i, type.length() - 7 - i);
-#elif defined(__clang__)
-  auto type = std::string{&__PRETTY_FUNCTION__[21]};
-  result = type.substr(0, type.length() - 1);
-#elif defined(__GCC__)
-  auto type = std::string{&__PRETTY_FUNCTION__[26]};
-  result = type.substr(0, type.length() - 1);
-#else
-#error "Platform not supported!"
+auto get_type() -> std::string {
+#if defined(__clang__)
+  return {&__PRETTY_FUNCTION__[63], sizeof(__PRETTY_FUNCTION__) - 65};
+#elif defined(__GNUC__)
+  return {&__PRETTY_FUNCTION__[77], sizeof(__PRETTY_FUNCTION__) - 136};
 #endif
-  std::replace(result.begin(), result.end(), ' ', '_');
-  return result;
+}
+
+template <class T>
+auto id(T out) -> std::string {
+  std::replace(out.begin(), out.end(), ' ', '_');
+  return out;
 }
 
 struct archive {
@@ -68,7 +63,7 @@ std::function<char*()> get_ptr(const TInjector&, std::false_type) {
 template <class TGiven, class TInjector>
 std::function<char*()> get_ptr(const TInjector& injector, std::true_type) {
   return [&injector] {
-    policy_guard _;
+    policy_guard _{};
     return reinterpret_cast<char*>(&injector.template create<TGiven&>());
   };
 }
@@ -77,18 +72,20 @@ class serializable_policy : public config {
  public:
   template <class TInjector>
   static auto policies(TInjector* injector) noexcept {
-    return make_policies([&](auto type) {
-      if (policy_guard::check()) return;
-      policy_guard _;
+    return make_policies([&injector](auto type) {
+      if (policy_guard::check()) {
+        return;
+      }
+      policy_guard _{};
       using T = decltype(type);
       using given = aux::decay_t<typename decltype(type)::type>;
       auto&& v = injector->template create<context&>();
       auto ptr = get_ptr<given>(*injector, std::is_reference<typename T::type>{});
-      if (std::is_pod<typename T::type>::value && T::arity::value) {
+      if (std::is_standard_layout<typename T::type>::value && T::arity::value) {
         ptr = v.back().ptr;
       }
 
-      std::string element;
+      std::string element{};
       if (!v.empty()) {
         element = v.back().path + "->";
         if (v.back().ptr) {
@@ -96,7 +93,7 @@ class serializable_policy : public config {
           if (!T::arity::value) {
             const auto align = alignof(given);
             v.offset = ((v.offset + align - 1) / align) * align;
-            serialize.push_back({v.back().path, v.back().ptr, get_type<given>(), v.offset});
+            serialize.push_back({v.back().path, v.back().ptr, id(get_type<given>()), v.offset});
             v.offset += sizeof(given);
           }
         }
@@ -108,7 +105,7 @@ class serializable_policy : public config {
 
       auto ctor_size = T::arity::value;
       while (ctor_size--) {
-        v.push_back({element + get_type<given>(), ptr, {}, 0});
+        v.push_back({element + id(get_type<given>()), ptr, {}, 0});
       }
     });
   }
@@ -118,14 +115,14 @@ template <class... Ts>
 struct serializable_call {
   template <class TInjector, class TExpr>
   static void apply(const TInjector& injector, TExpr expr) {
-    for (auto&& o : injector.template create<serializable&>()) {
+    for (const auto& o : injector.template create<serializable&>()) {
       apply_impl(o, expr, aux::type_list<Ts...>{});
     }
   }
 
   template <class TExpr, class T, class... Us>
   static void apply_impl(const archive& o, TExpr expr, aux::type_list<T, Us...>) {
-    if (get_type<T>() == o.type) {
+    if (id(get_type<T>()) == o.type) {
       expr(o, T{});
     } else {
       apply_impl(o, expr, aux::type_list<Us...>{});

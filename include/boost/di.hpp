@@ -6,7 +6,7 @@
 //
 #pragma once
 #if (__cplusplus < 201305L && _MSC_VER < 1900)
-#error "[Boost].DI requires C++14 support (Clang-3.4+, GCC-5.1+, MSVC-2015+)"
+#error "[Boost::ext].DI requires C++14 support (Clang-3.4+, GCC-5.1+, MSVC-2015+)"
 #else
 #define BOOST_DI_VERSION 1'1'0
 #define BOOST_DI_NAMESPACE_BEGIN \

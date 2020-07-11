@@ -89,8 +89,8 @@ test bind_to = [] {
 };
 
 test named_to = [] {
-  constexpr auto i = 42;
-  constexpr auto d = 87.0;
+  static constexpr auto i = 42;
+  static constexpr auto d = 87.0;
 
   struct c {
     BOOST_DI_INJECT(c, (named = a) int i, (named = b) double d) : i_(i), d_(d) {}
@@ -107,8 +107,8 @@ test named_to = [] {
 };
 
 test deduced_named_to = [] {
-  constexpr auto i = 42;
-  constexpr auto d = 87.0;
+  static constexpr auto i = 42;
+  static constexpr auto d = 87.0;
 
   struct c {
     BOOST_DI_INJECT(c, (named = a) int i, (named = b) double d) : i_(i), d_(d) {}
@@ -144,10 +144,9 @@ struct c {
 c::c(int i) : i(i) {}
 
 test named_with_ctor_def_decl = [] {
-  constexpr auto i = 42;
+  static constexpr auto i = 42;
 
   auto injector = di::make_injector(di::bind<int>().to(i).named(name));
-
   auto object = injector.create<c>();
 
   expect(i == object.i);
@@ -505,9 +504,10 @@ test dynamic_binding_using_polymorphic_lambdas_with_dependend_interfaces = [] {
 
 double return_double(double d) { return d; }
 
+#if !defined(__MSVC__)
 test bind_to_function_ptr = [] {
-  constexpr auto i = 42;
-  constexpr auto d = 87.0;
+  static constexpr auto i = 42;
+  static constexpr auto d = 87.0;
 
   struct functions {
     BOOST_DI_INJECT(functions, const std::function<int()> &fi, std::function<double()> fd) : fi(fi), fd(fd) {}
@@ -524,6 +524,7 @@ test bind_to_function_ptr = [] {
   expect(i == object.fi());
   expect(d == object.fd());
 };
+#endif
 
 test bind_to_function = [] {
   using f_t = std::function<double(double)>;
@@ -534,7 +535,7 @@ test bind_to_function = [] {
 };
 
 test runtime_factory_impl = [] {
-  constexpr auto i = 42;
+  static constexpr auto i = 42;
 
   auto test = [&](bool debug_property) {
     auto injector = make_injector(di::bind<int>().to(i), di::bind<i1>().to([&](const auto &injector) -> std::shared_ptr<i1> {
@@ -574,11 +575,10 @@ struct call_operator {
 };
 
 test runtime_factory_call_operator_impl = [] {
-  constexpr auto i = 42;
+  static constexpr auto i = 42;
 
   auto test = [&](bool debug_property) {
     auto injector = make_injector(di::bind<int>().to(i), di::bind<i1>().to(call_operator{debug_property}));
-
     return injector.create<std::shared_ptr<i1>>();
   };
 
@@ -615,8 +615,10 @@ test bind_function_to_callable = [] {
 };
 
 test bind_non_owning_ptr = [] {
+  static constexpr auto i = 42;
+
   using Pointer = int;
-  constexpr auto i = 42;
+
   struct c {
     c(Pointer &ptr) { expect(i == ptr); }
   };
@@ -629,6 +631,7 @@ test bind_non_owning_ptr = [] {
   delete ptr;
 };
 
+#if !defined(__MSVC__)
 test bind_to_function_via_interface = [] {
   struct i {
     virtual ~i() = default;
@@ -648,7 +651,15 @@ test bind_to_function_via_interface = [] {
 
   injector.create<c>();
 };
+#endif
 
+template <class TIf, class TImpl>
+struct expr {
+  template <class TInjector>
+  TIf &operator()(const TInjector &injector) {
+    return injector.template create<TImpl &>();
+  }
+};
 test bind_to_function_via_interface_inject = [] {
   struct i {
     virtual ~i() = default;
@@ -663,8 +674,7 @@ test bind_to_function_via_interface_inject = [] {
     BOOST_DI_INJECT(c, i &object) { expect(dynamic_cast<impl *>(&object)); }
   };
 
-  const auto injector =
-      di::make_injector(di::bind<i>().to([&](const auto &injector) -> i & { return injector.template create<impl &>(); }));
+  const auto injector = di::make_injector(di::bind<i>().to(expr<i, impl>{}));
 
   injector.create<c>();
 };
@@ -980,12 +990,14 @@ test bind_self_lazy_interface_mix = [] {
   }
 };
 
+#if !defined(__MSVC__)
 test bind_movable_only_type = [] {
   struct c {
     c(c &&) = default;
   };
   di::make_injector().create<c>();
 };
+#endif
 
 test bind_movable_only_type_with_default_ctor = [] {
   struct c {
@@ -1003,6 +1015,7 @@ test bind_movable_only_type_with_defined_default_ctor = [] {
   di::make_injector().create<c>();
 };
 
+#if !defined(__MSVC__)
 test bind_movable_only_type_deleted_copy_ctor = [] {
   struct c {
     c(c &&) = default;
@@ -1010,30 +1023,26 @@ test bind_movable_only_type_deleted_copy_ctor = [] {
   };
   di::make_injector().create<c>();
 };
+#endif
 
-test bind_deleted_copy_ctor_and_explicit_ctor = [] {
-  static auto called = false;
-  struct a {};
-  struct c {
-    explicit c(a &) { called = true; }
-    c(const c &) = delete;
-  };
-  di::make_injector().create<c &>();
-  expect(called);
+struct empty {};
+struct c_explicit {
+  explicit c_explicit(empty &) { called = true; }
+  c_explicit(const c_explicit &) = delete;
+  bool called{};
 };
 
-test bind_deleted_copy_ctor_and_non_explicit_ctor = [] {
-  static auto called = false;
-  struct a {};
-  struct c {
-    c(a &) {  // non explicit
-      called = true;
-    }
-    c(const c &) = delete;
-  };
-  di::make_injector().create<c &>();
-  expect(called);
+test bind_deleted_copy_ctor_and_explicit_ctor = [] { expect(di::make_injector().create<c_explicit &>().called); };
+
+struct c_non_explicit {
+  c_non_explicit(empty &) {  // non explicit
+    called = true;
+  }
+  c_non_explicit(const c_non_explicit &) = delete;
+  bool called{};
 };
+
+test bind_deleted_copy_ctor_and_non_explicit_ctor = [] { expect(di::make_injector().create<c_non_explicit &>().called); };
 
 test bind_unique_ptr_with_one_explicit_ctor_arg = [] {
   struct c {
@@ -1418,7 +1427,7 @@ test bind_to_ctor_short_notation_variable = [] {
 };
 
 test bind_mix = [] {
-  constexpr auto i = 42;
+  static constexpr auto i = 42;
 
   struct c {
     c(int i_, std::unique_ptr<i1> i1_, std::unique_ptr<i2> i2_) : i_(i_), i1_(std::move(i1_)), i2_(std::move(i2_)) {}

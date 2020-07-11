@@ -10,11 +10,11 @@
 #include "example/polymorphism/common/config.hpp"
 
 //<-
-#if defined(__cpp_concepts)
+#if defined(__cpp_concepts) && !defined(_MSC_VER)
 //->
 
 template <class T>
-concept bool Drawable = not boost::di::aux::is_complete<T>::value or requires(T t, std::ostream& out) {
+concept Drawable = not boost::di::aux::is_complete<T>::value or requires(T t, std::ostream& out) {
   t.draw(out);
 };
 
